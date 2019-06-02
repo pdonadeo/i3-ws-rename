@@ -1,0 +1,13 @@
+#require "logs.fmt";;
+#require "lwt.unix";;
+#require "lwt_ppx";;
+#require "i3ipc";;
+#require "yojson";;
+#require "ppx_deriving_yojson";;
+#require "ppx_deriving.show";;
+#directory "_build/default/src";;
+#directory "_build/default/src/.i3_ws_rename.eobjs/byte";;
+#load "fa_icons.cmo";;
+#load "conf.cmo";;
+#load "utils.cmo";;
+#require "fmt";;

@@ -1,0 +1,32 @@
+opam-version: "2.0"
+name: "i3-ws-rename"
+version: "1.0"
+synopsis: "Renames i3 workspaces using Font Awesome"
+description: "
+TODO
+"
+maintainer: "Paolo Donadeo <p.donadeo@gmail.com>"
+authors: "Paolo Donadeo <p.donadeo@gmail.com>"
+build: [
+  ["dune" "subst"] {pinned}
+  ["dune" "build" "@install"]
+  ["dune" "build" "-j" jobs "@compress" "-p" name]
+]
+dev-repo: "git@github.com:pdonadeo/i3-ws-rename.git"
+post-messages: [
+    "Program installed in %{sbin}%/i3-ws-rename"
+    {success & !user-setup:installed}
+]
+depends: [
+    "lwt"
+    "fmt"
+    "logs"
+    "ppx_deriving_yojson"
+    "i3ipc"
+    "dune" { build }
+    "merlin" { build }
+    "ocp-indent" { build }
+    "utop" { build }
+]
+homepage: "https://github.com/pdonadeo/i3-ws-rename"
+bug-reports: "https://github.com/pdonadeo/i3-ws-rename/issues"
