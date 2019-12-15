@@ -8,6 +8,6 @@
 #directory "_build/default/src";;
 #directory "_build/default/src/.i3_ws_rename.eobjs/byte";;
 #load "fa_icons.cmo";;
-#load "conf.cmo";;
 #load "utils.cmo";;
+#load "conf.cmo";;
 #require "fmt";;
