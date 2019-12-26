@@ -1,6 +1,7 @@
 (executable
   (name i3_ws_rename)
   (modules i3_ws_rename
+           lwt_module
            i3_status
            conf
            fa_icons

@@ -1,9 +1,4 @@
-open Modules_inventory
-
-
-type t = module_instance
-
-let delay = 0.5
+let delay = 0.33
 
 let now () =
   let open Unix in
@@ -11,47 +6,40 @@ let now () =
   (* ignore tm_sec; *)
   Lwt.return (Printf.sprintf "%02d:%02d:%02d" tm_hour tm_min tm_sec)
 
-let name = "clock"
+class ['message, 'a] modulo instance_name status_pipe : ['a] Lwt_module.modulo =
+  object (self)
+    constraint 'a = [ `r | `w]
 
-let state = ref None
+    inherit ['a] Lwt_module.base_modulo instance_name status_pipe
 
-let rec loop p instance () =
-  let%lwt n = now () in
+    val! name = "clock"
+    val mutable state = None
 
-  let%lwt result =
-    match !state with
-    | None -> begin
-      state := Some n;
-      Lwt_pipe.write p (`Status_change (name, instance))
-    end
-    | Some old_n -> begin
-      if n <> old_n then begin
-        state := Some n;
-        Lwt_pipe.write p (`Status_change (name, instance))
+    method! private loop () =
+      let%lwt n = now () in
+
+      let%lwt result =
+        match state with
+        | None -> begin
+          state <- Some n;
+          Lwt_pipe.write status_pipe (`Status_change (name, instance_name))
+        end
+        | Some old_n -> begin
+          if n <> old_n then begin
+            state <- Some n;
+            Lwt_pipe.write status_pipe (`Status_change (name, instance_name))
+          end
+          else Lwt.return true
+        end in
+
+      if result then begin
+        let%lwt () = Lwt_unix.sleep delay in
+        self#loop ()
       end
-      else Lwt.return true
-    end in
+      else Lwt.return ()
 
-  if result then begin
-    let%lwt () = Lwt_unix.sleep delay in
-    loop p instance ()
-  end
-  else Lwt.return ()
-
-let name = "clock"
-
-let json () =
-  match !state with
-  | None -> "{}"
-  | Some t -> Printf.sprintf "{ %s }" t
-
-let create p instance =
-  let this = {
-    name = name;
-    instance;
-    json
-  } in
-  let ready = Lwt.wait () in
-  Lwt.async (loop p instance);
-  Lwt.wakeup (snd ready) this;
-  fst ready
+  method! json () =
+    match state with
+    | None -> "{}"
+    | Some s -> Printf.sprintf "{ %s }" s
+end
