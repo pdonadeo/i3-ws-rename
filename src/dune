@@ -1,6 +1,14 @@
 (executable
   (name i3_ws_rename)
-  (modules i3_ws_rename conf fa_icons utils)
+  (modules i3_ws_rename
+           i3_status
+           conf
+           fa_icons
+           utils
+           reporter
+           modules_inventory
+           disk_usage
+           clock)
   (preprocess (pps lwt
                    lwt.unix
                    lwt_ppx
@@ -13,7 +21,10 @@
              lwt_ppx
              logs.fmt
              logs.lwt
-             fmt))
+             fmt
+             lwt-pipe
+             base
+             core_kernel))
 
 (alias
   (name   compress)

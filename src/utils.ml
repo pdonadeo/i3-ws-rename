@@ -1,5 +1,14 @@
 module StringMap = Map.Make(String)
 
+module StringTuple2 = struct
+  open Core_kernel
+
+  include Tuple.Make       (String) (String)
+  include Tuple.Comparable (String) (String)
+end
+
+module StringTuple2Map = Map.Make(StringTuple2)
+
 let spf = Printf.sprintf
 
 let connect_and_subscribe () =

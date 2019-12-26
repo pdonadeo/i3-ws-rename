@@ -3,60 +3,6 @@ open Utils
 
 let must_shutdown = ref false
 
-let lwt_reporter () =
-  let buf_fmt ~like =
-    let b = Buffer.create 512 in
-    Fmt.with_buffer ~like b,
-    fun () -> let m = Buffer.contents b in Buffer.reset b; m
-  in
-  let fmt, flush = buf_fmt ~like:Fmt.stdout in
-  let reporter = Logs_fmt.reporter ~app:fmt ~dst:fmt () in
-  let report src level ~over k msgf =
-    let k () =
-      let write () = Lwt_io.write Lwt_io.stdout (flush ()) in
-      let unblock () = over (); Lwt.return_unit in
-      Lwt.finalize write unblock |> Lwt.ignore_result;
-      k ()
-    in
-    reporter.Logs.report src level ~over:(fun () -> ()) k msgf;
-  in
-  { Logs.report = report }
-
-let lwt_file_reporter (log_fname : string option) =
-  let buf_fmt ~like =
-    let b = Buffer.create 512 in
-    Fmt.with_buffer ~like b,
-    fun () -> let m = Buffer.contents b in Buffer.reset b; m
-  in
-  let fmt, flush = buf_fmt ~like:Fmt.stdout in
-  let reporter = Logs_fmt.reporter ~app:fmt ~dst:fmt () in
-  let report src level ~over k msgf =
-    let k () =
-      let write () =
-        let module U = Unix in
-        match log_fname with
-        | None -> Lwt.return ()
-        | Some log_fname -> begin
-          Lwt_io.with_file
-            ~flags:[U.O_WRONLY; U.O_APPEND; U.O_CREAT]
-            ~mode:Lwt_io.output log_fname
-            (fun oc -> Lwt_io.write oc (flush ()))
-        end in
-      let unblock () = over (); Lwt.return_unit in
-      Lwt.finalize write unblock |> Lwt.ignore_result;
-      k ()
-    in
-    reporter.Logs.report src level ~over:(fun () -> ()) k msgf;
-  in
-  { Logs.report = report }
-
-let combine r1 r2 =
-  let report = fun src level ~over k msgf ->
-    let v = r1.Logs.report src level ~over:(fun () -> ()) k msgf in
-    r2.Logs.report src level ~over (fun () -> v) msgf
-  in
-  { Logs.report }
-
 let redirect_to_dev_null ~mode fd =
   let dev_null = Unix.openfile "/dev/null" [mode] 0o777 in
   Unix.dup2 dev_null fd;
@@ -232,15 +178,16 @@ let rec protected_loop conf conn =
     end
   end
 
-let main unique daemon verbose log_fname conf_fname =
-  let r1 = lwt_reporter () in
-  let r2 = lwt_file_reporter (Some log_fname) in
-  if daemon then Logs.set_reporter r2 else Logs.set_reporter (combine r1 r2);
+let main unique verbose log_fname conf_fname =
+  Printf.eprintf "log_fname = %s\n%!" log_fname;
+  Logs.set_reporter (Reporter.lwt_file_reporter (Some log_fname));
   if verbose
     then Logs.set_level (Some Logs.Debug)
     else Logs.set_level (Some Logs.Info);
 
   let%lwt conf = Conf.read_configuration conf_fname in
+
+  Lwt.async I3_status.entry_point;
 
   ignore (unique);
 
@@ -301,7 +248,7 @@ let main' u daemon verbose log_fname conf_fname =
   mkdir_p (Filename.dirname log_fname) 0o755;
 
   if daemon then daemonize ~cd ();
-  Lwt_main.run (main u daemon verbose log_fname conf_fname)
+  Lwt_main.run (main u verbose log_fname conf_fname)
 
 let main_t = Term.(const main' $ unique $ daemon $ verbose $ log_fname $ conf_fname)
 
