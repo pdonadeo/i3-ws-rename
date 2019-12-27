@@ -1,5 +1,7 @@
 let delay = 5.0
 
+let spf = Printf.sprintf
+
 let df () =
   let open Base in
   let open String in
@@ -18,7 +20,7 @@ let df () =
     Lwt.return map
   with _ -> Lwt.return init
 
-class ['a] modulo instance_name status_pipe : ['a] Lwt_module.modulo =
+class ['a] modulo instance_name status_pipe color_good color_degraded color_bad : ['a] Lwt_module.modulo =
   object (self)
     constraint 'a = [ `r | `w]
 
@@ -46,7 +48,26 @@ class ['a] modulo instance_name status_pipe : ['a] Lwt_module.modulo =
       else Lwt.return ()
 
     method! json () =
-      match state with
-      | None -> "{}"
-      | Some s -> Printf.sprintf "{ %d }" s
+      let icon = match instance_name with
+        | "/" -> ""
+        | "/home" -> ""
+        | _ -> "?" in
+      let full_text, short_text = match state with
+      | None -> "N/A", ""
+      | Some s -> spf "%s %d%%" icon s, spf "%s%d" icon s in
+      let color =
+        match state with
+        | None -> color_good
+        | Some u when u <= 85 -> color_good
+        | Some u when u > 85 -> color_degraded
+        | Some u when u > 95 -> color_bad
+        | Some _ -> color_bad in
+      let bl = {I3bar_protocol.Block.default with
+        full_text;
+        short_text;
+        color;
+        name;
+        instance = instance_name;
+      } in
+      Yojson.Safe.to_string (I3bar_protocol.Block.to_yojson bl)
 end

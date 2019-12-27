@@ -179,7 +179,6 @@ let rec protected_loop conf conn =
   end
 
 let main unique verbose log_fname conf_fname =
-  Printf.eprintf "log_fname = %s\n%!" log_fname;
   Logs.set_reporter (Reporter.lwt_file_reporter (Some log_fname));
   if verbose
     then Logs.set_level (Some Logs.Debug)

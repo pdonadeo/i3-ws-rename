@@ -20,10 +20,11 @@ class type virtual ['a] modulo =
     method ready : unit -> unit Lwt.t
     method stop : unit -> unit Lwt.t
     method name : string
+    method instance : string
     method json : unit -> string
   end
 
-class virtual ['a] base_modulo _instance status_pipe =
+class virtual ['a] base_modulo instance status_pipe =
   object (self)
     constraint 'a = [< `r | `w]
 
@@ -59,6 +60,8 @@ class virtual ['a] base_modulo _instance status_pipe =
       (fst ready)
 
     method name = name
+
+    method instance : string = instance
 
     method json () = "{}"
   end

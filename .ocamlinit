@@ -5,9 +5,13 @@
 #require "yojson";;
 #require "ppx_deriving_yojson";;
 #require "ppx_deriving.show";;
+#require "fmt";;
+#require "core_kernel";;
+
 #directory "_build/default/src";;
 #directory "_build/default/src/.i3_ws_rename.eobjs/byte";;
+
 #load "fa_icons.cmo";;
 #load "utils.cmo";;
 #load "conf.cmo";;
-#require "fmt";;
+#load "i3bar_protocol.cmo";;

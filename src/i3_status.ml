@@ -7,34 +7,25 @@ let header_block = "{ \"version\": 1, \"stop_signal\": 20, \"cont_signal\": 18, 
 
 let pipe : (message_to_status, [< `r | `w ]) Lwt_pipe.t = Lwt_pipe.create ~max_size:10 ()
 
-let modules_configuration  = [
-  (
-    (new Disk_usage.modulo "/" pipe : [ `r | `w] Lwt_module.modulo),
-    "/",
-    true
-  );
-  (
-    (new Disk_usage.modulo "/home" pipe : [ `r | `w] Lwt_module.modulo),
-    "/home",
-    true
-  );
-  (
-    (new Clock.modulo "0" pipe : [ `r | `w] Lwt_module.modulo),
-    "0",
-    true
-  )
+let color = "#c5c8c6"
+let color_good = "#39B258"
+let color_degraded = "#CC9246"
+let color_bad = "#9B51FF"
+let color_separator = "#C5C8C6"
+
+let modules : [ `r | `w] Lwt_module.modulo list = [
+  new Disk_usage.modulo "/" pipe color color_degraded color_bad;
+  new Disk_usage.modulo "/home" pipe color color_degraded color_bad;
+  new Clock.modulo "0" pipe color_degraded;
 ]
 
 let entry_point () =
-  let%lwt () = Lwt_io.printf "I3_statuss.entry_point\n%!" in
-
-  let%lwt running_instances = Lwt_list.fold_left_s (fun map m ->
-    let modulo, instance, separator = m in
-    ignore separator; (* TODO *)
-
+  let%lwt running_instances = Lwt_list.fold_left_s (fun map (modulo : [ `r | `w] Lwt_module.modulo) ->
     let%lwt () = modulo#run () in
-    Lwt.return (StringTuple2Map.add (modulo#name, instance) modulo map)
-  ) StringTuple2Map.empty modules_configuration in
+    Lwt.return (StringTuple2Map.add (modulo#name, modulo#instance) modulo map)
+  ) StringTuple2Map.empty modules in
+
+  ignore running_instances; (* TODO *)
 
   let%lwt () = Lwt_io.write_line Lwt_io.stdout header_block in
   let%lwt () = Lwt_io.write_line Lwt_io.stdout "[" in
@@ -46,10 +37,12 @@ let entry_point () =
     end
     | Data_available t -> begin
       match t with
-      | `Status_change (name, instance_name) -> begin
-        let%lwt () = Lwt_io.printf "Update from %s/%s\n%!" name instance_name in
-        let mod_ = StringTuple2Map.find (name, instance_name) running_instances in
-        let%lwt () = Lwt_io.printf "    JSON = %s\n%!" (mod_#json ()) in
+      | `Status_change (_name, _instance_name) -> begin
+        let%lwt () = Lwt_io.printf "[" in
+        let blocks = List.map modules ~f:(fun mod_ -> mod_#json ()) in
+        let%lwt () = Lwt_io.printf "%s" (String.concat ~sep:"," blocks) in
+        let%lwt () = Lwt_io.printf "]," in
+        let%lwt () = Lwt_io.(flush stdout) in
         loop ()
       end
     end

@@ -9,6 +9,7 @@
            reporter
            modules_inventory
            disk_usage
+           i3bar_protocol
            clock)
   (preprocess (pps lwt
                    lwt.unix
