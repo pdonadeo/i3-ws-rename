@@ -20,7 +20,7 @@ let df () =
     Lwt.return map
   with _ -> Lwt.return init
 
-class ['a] modulo instance_name status_pipe color_good color_degraded color_bad : ['a] Lwt_module.modulo =
+class ['a] modulo instance_name status_pipe color_good color_degraded color_bad sep : ['a] Lwt_module.modulo =
   object (self)
     constraint 'a = [ `r | `w]
 
@@ -68,6 +68,7 @@ class ['a] modulo instance_name status_pipe color_good color_degraded color_bad 
         color;
         name;
         instance = instance_name;
+        separator = sep;
       } in
-      Yojson.Safe.to_string (I3bar_protocol.Block.to_yojson bl)
+      Yojson.Safe.to_string (I3bar_protocol.Block.to_yojson bl) |> Lwt.return
 end

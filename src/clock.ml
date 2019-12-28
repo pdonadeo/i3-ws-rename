@@ -16,7 +16,7 @@ let format_short state =
   | Some (_y, _mo, _d, h, m) -> Printf.sprintf "  %02d:%02d" h m
   | None -> ""
 
-class ['message, 'a] modulo instance_name status_pipe color : ['a] Lwt_module.modulo =
+class ['message, 'a] modulo instance_name status_pipe color sep : ['a] Lwt_module.modulo =
   object (self)
     constraint 'a = [ `r | `w]
 
@@ -55,6 +55,7 @@ class ['message, 'a] modulo instance_name status_pipe color : ['a] Lwt_module.mo
       color;
       name;
       instance = instance_name;
+      separator = sep;
     } in
-    Yojson.Safe.to_string (I3bar_protocol.Block.to_yojson bl)
+    Yojson.Safe.to_string (I3bar_protocol.Block.to_yojson bl) |> Lwt.return
 end

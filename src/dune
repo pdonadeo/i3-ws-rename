@@ -9,6 +9,7 @@
            reporter
            modules_inventory
            disk_usage
+           load_avg
            i3bar_protocol
            clock)
   (preprocess (pps lwt
@@ -26,7 +27,8 @@
              fmt
              lwt-pipe
              base
-             core_kernel))
+             core_kernel
+             shell.unix_extended))
 
 (alias
   (name   compress)

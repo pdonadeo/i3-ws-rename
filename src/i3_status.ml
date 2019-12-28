@@ -14,9 +14,10 @@ let color_bad = "#9B51FF"
 let color_separator = "#C5C8C6"
 
 let modules : [ `r | `w] Lwt_module.modulo list = [
-  new Disk_usage.modulo "/" pipe color color_degraded color_bad;
-  new Disk_usage.modulo "/home" pipe color color_degraded color_bad;
-  new Clock.modulo "0" pipe color_degraded;
+  new Disk_usage.modulo "/" pipe color color_degraded color_bad false;
+  new Disk_usage.modulo "/home" pipe color color_degraded color_bad true;
+  new Load_avg.modulo "0" pipe color_good color_degraded color_bad false;
+  new Clock.modulo "0" pipe color_degraded true;
 ]
 
 let entry_point () =
@@ -39,7 +40,7 @@ let entry_point () =
       match t with
       | `Status_change (_name, _instance_name) -> begin
         let%lwt () = Lwt_io.printf "[" in
-        let blocks = List.map modules ~f:(fun mod_ -> mod_#json ()) in
+        let%lwt blocks = Lwt_list.map_p (fun mod_ -> mod_#json ()) modules in
         let%lwt () = Lwt_io.printf "%s" (String.concat ~sep:"," blocks) in
         let%lwt () = Lwt_io.printf "]," in
         let%lwt () = Lwt_io.(flush stdout) in

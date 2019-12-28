@@ -21,7 +21,7 @@ class type virtual ['a] modulo =
     method stop : unit -> unit Lwt.t
     method name : string
     method instance : string
-    method json : unit -> string
+    method json : unit -> string Lwt.t
   end
 
 class virtual ['a] base_modulo instance status_pipe =
@@ -63,5 +63,5 @@ class virtual ['a] base_modulo instance status_pipe =
 
     method instance : string = instance
 
-    method json () = "{}"
+    method json () = Lwt.return "{}"
   end
