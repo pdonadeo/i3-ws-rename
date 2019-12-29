@@ -10,6 +10,7 @@
            modules_inventory
            disk_usage
            load_avg
+           cpu
            i3bar_protocol
            clock)
   (preprocess (pps lwt

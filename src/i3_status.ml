@@ -17,6 +17,7 @@ let modules : [ `r | `w] Lwt_module.modulo list = [
   new Disk_usage.modulo "/" pipe color color_degraded color_bad false;
   new Disk_usage.modulo "/home" pipe color color_degraded color_bad true;
   new Load_avg.modulo "0" pipe color_good color_degraded color_bad false;
+  new Cpu.modulo "0" pipe color_good color_degraded color_bad false;
   new Clock.modulo "0" pipe color_degraded true;
 ]
 

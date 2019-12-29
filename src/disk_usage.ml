@@ -58,9 +58,8 @@ class ['a] modulo instance_name status_pipe color_good color_degraded color_bad 
       let color =
         match state with
         | None -> color_good
-        | Some u when u <= 85 -> color_good
-        | Some u when u > 85 -> color_degraded
-        | Some u when u > 95 -> color_bad
+        | Some u when 0 <= u && u <= 75 -> color_good
+        | Some u when 75 < u && u <= 95 -> color_degraded
         | Some _ -> color_bad in
       let bl = {I3bar_protocol.Block.default with
         full_text;
