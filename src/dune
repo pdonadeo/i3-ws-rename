@@ -13,7 +13,8 @@
            cpu
            memory
            i3bar_protocol
-           clock)
+           clock
+           path_exists)
   (preprocess (pps lwt
                    lwt.unix
                    lwt_ppx

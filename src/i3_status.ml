@@ -16,6 +16,8 @@ let color_separator = "#C5C8C6"
 let modules : [ `r | `w] Lwt_module.modulo list = [
   new Disk_usage.modulo "/" pipe color color_degraded color_bad true;
   new Disk_usage.modulo "/home" pipe color color_degraded color_bad true;
+  new Path_exists.modulo "PostgreSQL" pipe "/run/postgresql/.s.PGSQL.5432.lock" "" color_good true;
+  new Path_exists.modulo "Docker" pipe "/run/docker.pid" "" color_good true;
   new Load_avg.modulo "0" pipe color_good color_degraded color_bad false;
   new Cpu.modulo "0" pipe color_good color_degraded color_bad false;
   new Memory.modulo "0" pipe color_good color_degraded color_bad true;
