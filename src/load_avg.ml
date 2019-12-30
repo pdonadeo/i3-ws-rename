@@ -47,9 +47,12 @@ class ['a] modulo instance_name status_pipe color_good color_degraded color_bad 
       let color, full_text, short_text =
         match state, load_perc with
         | None, _ -> color_good, "", ""
-        | Some l, lp when 0. <= lp && lp <= 50. -> color_good, spf "%s %0.2f" icon l, ""
-        | Some l, lp when 50. < lp && lp <= 75. -> color_degraded, spf "%s %0.2f" icon l, spf "%s %0.2f" icon l
-        | Some l, _ -> color_bad, spf "%s %0.2f" icon l, spf "%s %0.2f" icon l in
+        | Some l, lp when 0. <= lp && lp <= 50. ->
+            color_good, spf "%s %0.2f " icon l, ""
+        | Some l, lp when 50. < lp && lp <= 75. ->
+            color_degraded, spf "%s %0.2f " icon l, spf "%s %0.2f " icon l
+        | Some l, _ ->
+            color_bad, spf "%s %0.2f " icon l, spf "%s %0.2f " icon l in
       let bl = {I3bar_protocol.Block.default with
         full_text;
         short_text;
@@ -57,6 +60,7 @@ class ['a] modulo instance_name status_pipe color_good color_degraded color_bad 
         name;
         instance = instance_name;
         separator = sep;
+        separator_block_width = 0;
       } in
       Yojson.Safe.to_string (I3bar_protocol.Block.to_yojson bl) |> Lwt.return
 end

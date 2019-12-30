@@ -6,7 +6,7 @@
 #require "ppx_deriving_yojson";;
 #require "ppx_deriving.show";;
 #require "fmt";;
-#require "core_kernel";;
+#require "core";;
 
 #directory "_build/default/src";;
 #directory "_build/default/src/.i3_ws_rename.eobjs/byte";;
