@@ -7,7 +7,6 @@
            fa_icons
            utils
            reporter
-           modules_inventory
            disk_usage
            load_avg
            cpu

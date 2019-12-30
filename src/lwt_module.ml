@@ -1,5 +1,6 @@
-open Modules_inventory
-
+type message_to_status = [
+  | `Status_change of string * string
+]
 
 class type virtual ['a] modulo =
   object
@@ -10,10 +11,10 @@ class type virtual ['a] modulo =
     val mutable stop_request : bool
     val tags : (string * string) list
     val name : string
-    val pipe : (message_to_modules, 'a) Lwt_pipe.t
+    val pipe : (I3bar_protocol.Click_event.t, 'a) Lwt_pipe.t
     val status_pipe : (message_to_status, 'a) Lwt_pipe.t
 
-    method pipe : (message_to_modules, 'a) Lwt_pipe.t
+    method pipe : (I3bar_protocol.Click_event.t, 'a) Lwt_pipe.t
     method stopped : unit Lwt.t
 
     method run : unit -> unit Lwt.t
@@ -37,7 +38,7 @@ class virtual ['a] base_modulo instance status_pipe =
     val status_pipe = status_pipe
 
     (* method private reader : 'message Lwt_pipe.Reader.t = pipe *)
-    method pipe : (message_to_modules, 'a) Lwt_pipe.t = pipe
+    method pipe : (I3bar_protocol.Click_event.t, 'a) Lwt_pipe.t = pipe
     method stopped = fst stopped
 
     method private loop () =
@@ -45,8 +46,16 @@ class virtual ['a] base_modulo instance status_pipe =
       let%lwt () = Lwt_unix.sleep 1.0 in
       self#loop ()
 
+    method private read_loop () =
+      let%lwt maybe_msg = Lwt_pipe.read pipe in
+      (match maybe_msg with
+      | Some _ -> Logs.debug (fun m -> m "%s: received message" name)
+      | None -> ());
+      self#read_loop ()
+
     method run () : unit Lwt.t =
       Lwt.async (self#loop);
+      Lwt.async (self#read_loop);
       Lwt.wakeup (snd ready) ();
       (fst ready)
 

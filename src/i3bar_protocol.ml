@@ -102,3 +102,18 @@ module Block = struct
       then ("markup", markup_to_yojson t.markup)::l else l in
     `Assoc (List.rev l)
 end
+
+module Click_event = struct
+  type t = {
+    name: string;
+    instance: string;
+    button: int;
+    modifiers: string list;
+    x: int;
+    y: int;
+    relative_x: int;
+    relative_y: int;
+    width: int;
+    height: int;
+  } [@@deriving of_yojson, show]
+end
