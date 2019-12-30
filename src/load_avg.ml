@@ -1,4 +1,4 @@
-let delay = 0.25
+let delay = 1.0
 
 let spf = Printf.sprintf
 
@@ -27,10 +27,18 @@ class ['a] modulo instance_name status_pipe color_good color_degraded color_bad 
       let load1, _, _ = Unix_extended.getloadavg () in
 
       let%lwt result =
-        if state <> (Some load1) then begin
+        match state with
+        | None -> begin
           state <- Some load1;
           Lwt_pipe.write status_pipe (`Status_change (name, instance_name))
-        end else Lwt.return true in
+        end
+        | Some load1' -> begin
+          if Float.abs (load1 -. load1') > 0.25 then begin
+            Logs.debug (fun m -> m "%s state update" name);
+            state <- Some load1;
+            Lwt_pipe.write status_pipe (`Status_change (name, instance_name))
+          end else Lwt.return true
+        end in
 
       let%lwt () = Lwt_unix.sleep delay in
       if result = true
