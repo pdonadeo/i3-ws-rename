@@ -13,7 +13,8 @@
            memory
            i3bar_protocol
            clock
-           path_exists)
+           path_exists
+           whatsmyip)
   (preprocess (pps lwt
                    lwt.unix
                    lwt_ppx
@@ -30,7 +31,9 @@
              lwt-pipe
              base
              core
-             shell.unix_extended))
+             shell.unix_extended
+             curl
+             curl.lwt))
 
 (alias
   (name   compress)
