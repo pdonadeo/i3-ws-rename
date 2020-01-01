@@ -72,5 +72,6 @@ class virtual ['a] base_modulo instance status_pipe =
 
     method instance : string = instance
 
-    method json () = Lwt.return "{}"
+    method json () =
+      Lwt.return (Printf.sprintf "{ \"name\" : \"%s\" }" self#name)
   end
