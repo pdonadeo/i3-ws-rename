@@ -61,7 +61,6 @@ class ['a] modulo instance_name status_pipe color_good color_degraded color_bad 
         end
         | Some (_, _, used_str', _) -> begin
           if used_str' <> used_str then begin
-            Logs.debug (fun m -> m "%s state update" name);
             state <- Some (used_mem_perc, used_mem_KiB, used_str, unity);
             Lwt_pipe.write status_pipe (`Status_change (name, instance_name))
           end else begin

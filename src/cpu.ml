@@ -66,7 +66,6 @@ class ['a] modulo instance_name status_pipe color_good color_degraded color_bad 
         end
         | Some (cpu, _str) -> begin
           if Float.abs (cpu -. cpu_used) > 5.0 then begin
-            Logs.debug (fun m -> m "%s state update" name);
             state <- Some (cpu_used, cpu_used_str);
             Lwt_pipe.write status_pipe (`Status_change (name, instance_name))
           end else begin

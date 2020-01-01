@@ -34,7 +34,6 @@ class ['a] modulo instance_name status_pipe color_good color_degraded color_bad 
         end
         | Some load1' -> begin
           if Float.abs (load1 -. load1') > 0.25 then begin
-            Logs.debug (fun m -> m "%s state update" name);
             state <- Some load1;
             Lwt_pipe.write status_pipe (`Status_change (name, instance_name))
           end else Lwt.return true

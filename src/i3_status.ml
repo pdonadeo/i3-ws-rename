@@ -72,7 +72,8 @@ let entry_point () =
     | Timeout -> loop ()
     | Data_available t -> begin
       match t with
-      | `Status_change (_name, _instance_name) -> begin
+      | `Status_change (name, instance_name) -> begin
+        Logs.debug (fun m -> m "(%s,%s) state update" name instance_name);
         let%lwt () = Lwt_io.printf "[" in
         let%lwt blocks = Lwt_list.map_p (fun mod_ -> mod_#json ()) modules in
         let%lwt () = Lwt_io.printf "%s" (Core_kernel.String.concat ~sep:"," blocks) in
