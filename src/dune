@@ -14,7 +14,9 @@
            i3bar_protocol
            clock
            path_exists
-           whatsmyip)
+           whatsmyip
+           unix_ext)
+  (foreign_stubs (language c) (names unix_ext_stubs))
   (preprocess (pps lwt
                    lwt.unix
                    lwt_ppx
@@ -29,16 +31,18 @@
              logs.lwt
              fmt
              lwt-pipe
-             base
-             core
-             shell.unix_extended
              curl
-             curl.lwt))
+             curl.lwt
+             batteries))
 
-(alias
-  (name   compress)
-  (deps   i3_ws_rename.exe)
-  (action (run upx i3_ws_rename.exe)))
+;(alias
+;  (name   compress)
+;  (deps   i3_ws_rename.exe)
+;  (action (run upx i3_ws_rename.exe)))
+(rule
+  (alias compress)
+  (action (run upx i3_ws_rename.exe))
+)
 
 (install
   (section bin)

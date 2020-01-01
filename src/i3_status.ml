@@ -29,10 +29,9 @@ let rec read_click_event () =
   if l = "["
   then read_click_event ()
   else begin
-    let open Core in
     let msg =
-      if String.is_prefix l ~prefix:","
-      then String.strip ~drop:(Char.equal ',') l
+      if BatString.starts_with l ","
+      then BatString.strip ~chars:"," l
       else l in
     let res = Yojson.Safe.from_string msg |> I3bar_protocol.Click_event.of_yojson in
     match res with
@@ -47,7 +46,9 @@ let rec read_clicks_loop (running_instances : [ `r | `w ] Lwt_module.modulo Stri
   let%lwt msg = read_click_event () in
   let name = msg.name in
   let instance = msg.instance in
-  let maybe_mod = StringTuple2Map.find_opt (name, instance) running_instances in
+  let maybe_mod =
+    try Some (StringTuple2Map.find (name, instance) running_instances)
+    with Not_found -> None in
   match maybe_mod with
   | Some mod_ -> begin
     let pipe = mod_#pipe in
@@ -55,6 +56,7 @@ let rec read_clicks_loop (running_instances : [ `r | `w ] Lwt_module.modulo Stri
     read_clicks_loop running_instances ()
   end
   | None -> read_clicks_loop running_instances ()
+
 
 let entry_point () =
   let%lwt running_instances = Lwt_list.fold_left_s (fun map (modulo : [ `r | `w] Lwt_module.modulo) ->
@@ -76,7 +78,7 @@ let entry_point () =
         Logs.debug (fun m -> m "(%s,%s) state update" name instance_name);
         let%lwt () = Lwt_io.printf "[" in
         let%lwt blocks = Lwt_list.map_p (fun mod_ -> mod_#json ()) modules in
-        let%lwt () = Lwt_io.printf "%s" (Core_kernel.String.concat ~sep:"," blocks) in
+        let%lwt () = Lwt_io.printf "%s" (BatString.concat "," blocks) in
         let%lwt () = Lwt_io.printf "]," in
         let%lwt () = Lwt_io.(flush stdout) in
         loop ()

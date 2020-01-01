@@ -3,22 +3,19 @@ let delay = 5.0
 let spf = Printf.sprintf
 
 let df () =
-  let open Base in
-  let open String in
-
-  let init = Map.empty (module String) in
+  let open BatString in
   try%lwt
     let%lwt res = Lwt_process.pread ("/usr/bin/df", [|"df"; "-k"|]) in
-    let lines = split_lines res |> List.tl_exn in
-    let init = Map.empty (module String) in
-    let map = List.fold lines ~init ~f:(fun m line ->
-      let usage_mount = List.split_n (split ~on:' ' line |> List.filter ~f:((<>) "")) 4 |> snd in
-      let usage = List.nth_exn usage_mount 0 |> strip ~drop:(Char.equal '%') |> Int.of_string in
-      let mount = List.nth_exn usage_mount 1 in
-      Map.add_exn m ~key:mount ~data:usage
-    ) in
+    let lines = nsplit ~by:"\n" res |> List.tl |> List.filter ((<>) "") in
+    let init = BatMap.String.empty in
+    let map = List.fold_left (fun m line ->
+      let usage_mount = BatList.split_at 4 (split_on_char ' ' line |> List.filter ((<>) "")) |> snd in
+      let usage = List.nth usage_mount 0 |> strip ~chars:"%" |> int_of_string in
+      let mount = List.nth usage_mount 1 in
+      BatMap.String.add mount usage m
+    ) init lines in
     Lwt.return map
-  with _ -> Lwt.return init
+  with _ -> Lwt.return BatMap.String.empty
 
 class ['a] modulo instance_name status_pipe color_good color_degraded color_bad sep : ['a] Lwt_module.modulo =
   object (self)
@@ -32,9 +29,8 @@ class ['a] modulo instance_name status_pipe color_good color_degraded color_bad 
     method! private loop () =
       let%lwt res = df () in
       let usage =
-        match Base.Map.find res instance_name with
-        | Some u -> u
-        | None -> 0 in
+        try BatMap.String.find instance_name res
+        with Not_found -> 0 in
 
       let%lwt result =
         if state <> (Some usage) then begin

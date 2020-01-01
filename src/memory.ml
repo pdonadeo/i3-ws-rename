@@ -7,28 +7,26 @@ let get_meminfo () =
   with_file ~flags:[O_RDONLY] ~mode:Input "/proc/meminfo" (fun ic ->
     let%lwt lines = read_lines ic |> Lwt_stream.to_list in
 
-    let open Core in
-    let stats = List.fold ~init:String.Map.empty ~f:(fun stats line ->
+    let stats = ListLabels.fold_left ~init:BatMap.String.empty ~f:(fun stats line ->
       let tokens =
-        String.split ~on:' ' line
-        |> List.filter ~f:(fun t -> if String.equal t "" then false else true)
-        |> List.to_array
+        BatString.split_on_char ' ' line
+        |> ListLabels.filter ~f:(fun t -> if String.equal t "" then false else true)
+        |> Array.of_list
       in
-      let name = tokens.(0) |> String.strip ~drop:(Char.(=) ':') in
-      let val_kb = tokens.(1) |> Int.of_string in
-      String.Map.add_exn stats ~key:name ~data:val_kb
+      let name = tokens.(0) |> BatString.strip ~chars:":" in
+      let val_kb = tokens.(1) |> int_of_string in
+      BatMap.String.add name val_kb stats
     ) lines in
     Lwt.return stats
   )
 
 let compute_mem_used meminfo =
-  let open Core in
-  let mem_total = String.Map.find_exn meminfo "MemTotal" in
-  let mem_free = String.Map.find_exn meminfo "MemFree" in
-  let buffers = String.Map.find_exn meminfo "Buffers" in
-  let cached = String.Map.find_exn meminfo "Cached" in
-  let s_reclaimable = String.Map.find_exn meminfo "SReclaimable" in
-  let shmem = String.Map.find_exn meminfo "Shmem" in
+  let mem_total = BatMap.String.find "MemTotal" meminfo in
+  let mem_free = BatMap.String.find "MemFree" meminfo in
+  let buffers = BatMap.String.find "Buffers" meminfo in
+  let cached = BatMap.String.find "Cached" meminfo in
+  let s_reclaimable = BatMap.String.find "SReclaimable" meminfo in
+  let shmem = BatMap.String.find "Shmem" meminfo in
 
   let used_mem_KiB = (mem_total - mem_free -
     (buffers + cached + (s_reclaimable - shmem))) |> Float.of_int in
@@ -36,7 +34,7 @@ let compute_mem_used meminfo =
   let used_mem_MiB = used_mem_KiB /. 1024. in
   let used_mem_GiB = used_mem_MiB /. 1024. in
   let used_mem_perc = used_mem_KiB /. mem_total_KiB *. 100. in
-  if Float.(used_mem_GiB <= 1.0)
+  if used_mem_GiB <= 1.0
   then used_mem_perc, used_mem_KiB, Float.round used_mem_MiB |> Float.to_int |> Int.to_string, "MiB"
   else used_mem_perc, used_mem_KiB, spf "%0.2f" used_mem_GiB, "GiB"
 

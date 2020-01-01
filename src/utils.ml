@@ -1,13 +1,12 @@
-module StringMap = Map.Make(String)
-
 module StringTuple2 = struct
-  open Core_kernel
-
-  include Tuple.Make       (String) (String)
-  include Tuple.Comparable (String) (String)
+  type t = string * string
+  let compare (x1, y1) (x2, y2) =
+    if compare x1 x2 = 0
+    then compare y1 y2
+    else compare x1 x2
 end
 
-module StringTuple2Map = Map.Make(StringTuple2)
+module StringTuple2Map = BatMap.Make(StringTuple2)
 
 let spf = Printf.sprintf
 

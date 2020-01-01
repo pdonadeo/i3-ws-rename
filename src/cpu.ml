@@ -7,24 +7,24 @@ let get_cpu_stats () =
   with_file ~flags:[O_RDONLY] ~mode:Input "/proc/stat" (fun ic ->
     let%lwt lines = read_lines ic |> Lwt_stream.to_list in
     let first_line = List.hd lines in
-    let open Core in
+
     let stats =
-      String.split ~on:' ' first_line
-      |> List.filter ~f:(fun t -> if String.equal t "" then false else true)
-      |> List.tl_exn
-      |> List.to_array
-      |> Array.map ~f:Int.of_string in
+      BatString.split_on_char ' ' first_line
+      |> List.filter (fun t -> if String.equal t "" then false else true)
+      |> List.tl
+      |> Array.of_list
+      |> Array.map int_of_string in
     let stats =
-      String.Map.add_exn String.Map.empty ~key:"user" ~data:stats.(0)
-      |> String.Map.add_exn ~key:"nice"       ~data:stats.(1)
-      |> String.Map.add_exn ~key:"system"     ~data:stats.(2)
-      |> String.Map.add_exn ~key:"idle"       ~data:stats.(3)
-      |> String.Map.add_exn ~key:"iowait"     ~data:stats.(4)
-      |> String.Map.add_exn ~key:"irq"        ~data:stats.(5)
-      |> String.Map.add_exn ~key:"softirq"    ~data:stats.(6)
-      |> String.Map.add_exn ~key:"steal"      ~data:stats.(7)
-      |> String.Map.add_exn ~key:"guest"      ~data:stats.(8)
-      |> String.Map.add_exn ~key:"guest_nice" ~data:stats.(9) in
+      BatMap.String.add    "user"       stats.(0) BatMap.String.empty
+      |> BatMap.String.add "nice"       stats.(1)
+      |> BatMap.String.add "system"     stats.(2)
+      |> BatMap.String.add "idle"       stats.(3)
+      |> BatMap.String.add "iowait"     stats.(4)
+      |> BatMap.String.add "irq"        stats.(5)
+      |> BatMap.String.add "softirq"    stats.(6)
+      |> BatMap.String.add "steal"      stats.(7)
+      |> BatMap.String.add "guest"      stats.(8)
+      |> BatMap.String.add "guest_nice" stats.(9) in
     Lwt.return stats
   )
 
@@ -36,18 +36,17 @@ class ['a] modulo instance_name status_pipe color_good color_degraded color_bad 
 
     val! name = "cpu"
     val mutable state = None
-    val mutable last_cpu_stats = Core.String.Map.empty
-    val mutable cpu_stats = Core.String.Map.empty
+    val mutable last_cpu_stats = BatMap.String.empty
+    val mutable cpu_stats = BatMap.String.empty
 
     method private compute_cpu_used () =
-      let open Core in
-      let last_sum = String.Map.fold ~init:0 ~f:(fun ~key ~data sum -> ignore key; sum + data) last_cpu_stats |> Float.of_int in
-      let sum = String.Map.fold ~init:0 ~f:(fun ~key ~data sum -> ignore key; sum + data) cpu_stats |> Float.of_int in
+      (* (string -> 'a -> 'b -> 'b) -> 'a BatMap.String.t -> 'b -> 'b *)
+      let last_sum = BatMap.String.fold (fun key data sum -> ignore key; sum + data) last_cpu_stats 0 |> Float.of_int in
+      let sum = BatMap.String.fold (fun key data sum -> ignore key; sum + data) cpu_stats 0 |> Float.of_int in
       let last_idle =
-        match String.Map.find last_cpu_stats "idle" with
-        | Some i -> i |> Float.of_int
-        | None -> 0. in
-      let idle = String.Map.find_exn cpu_stats "idle" |> Float.of_int in
+        try BatMap.String.find "idle" last_cpu_stats |> float_of_int
+        with Not_found -> 0. in
+      let idle = BatMap.String.find "idle" cpu_stats |> float_of_int in
       (1. -. (idle -. last_idle) /. (sum -. last_sum)) *. 100.
 
     method! private loop () =

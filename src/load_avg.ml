@@ -7,12 +7,15 @@ let get_cores () =
   with_file ~flags:[O_RDONLY] ~mode:Input "/proc/cpuinfo" (fun ic ->
     let%lwt lines = read_lines ic |> Lwt_stream.to_list in
     let count = List.fold_left (fun c l ->
-      if Core.String.is_prefix l ~prefix:"processor"
+      if BatString.starts_with l "processor"
       then c + 1
       else c
     ) 0 lines in
     Lwt.return (Float.of_int count)
   )
+
+(* let getloadavg () = (* TODO *)
+  1., 2., 3. *)
 
 class ['a] modulo instance_name status_pipe color_good color_degraded color_bad sep : ['a] Lwt_module.modulo =
   object (self)
@@ -24,7 +27,7 @@ class ['a] modulo instance_name status_pipe color_good color_degraded color_bad 
     val mutable state = None
 
     method! private loop () =
-      let load1, _, _ = Unix_extended.getloadavg () in
+      let load1, _, _ = Unix_ext.getloadavg () in
 
       let%lwt result =
         match state with
