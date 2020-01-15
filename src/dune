@@ -27,6 +27,7 @@
              lwt
              lwt.unix
              lwt_ppx
+             lwt_glib
              logs.fmt
              logs.lwt
              fmt

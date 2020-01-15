@@ -247,6 +247,7 @@ let main' u daemon verbose log_fname conf_fname =
   mkdir_p (Filename.dirname log_fname) 0o755;
 
   if daemon then daemonize ~cd ();
+  Lwt_glib.install ();
   Lwt_main.run (main u verbose log_fname conf_fname)
 
 let main_t = Term.(const main' $ unique $ daemon $ verbose $ log_fname $ conf_fname)
