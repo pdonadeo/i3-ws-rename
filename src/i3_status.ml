@@ -21,6 +21,7 @@ let modules : [ `r | `w] Lwt_module.modulo list = [
   new Cpu.modulo "0" pipe color_good color_degraded color_bad false;
   new Memory.modulo "0" pipe color_good color_degraded color_bad true;
   new Clock.modulo "0" pipe color_degraded true;
+  new Volume.modulo "0" pipe color color_degraded false;
 ]
 
 let rec read_click_event () =

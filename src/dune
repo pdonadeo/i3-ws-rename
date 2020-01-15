@@ -13,6 +13,7 @@
            memory
            i3bar_protocol
            clock
+           volume
            path_exists
            whatsmyip
            unix_ext)
@@ -34,6 +35,8 @@
              lwt-pipe
              curl
              curl.lwt
+             glib
+             pulse
              batteries))
 
 ;(alias
