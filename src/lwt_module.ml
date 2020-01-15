@@ -42,7 +42,7 @@ class virtual ['a] base_modulo instance status_pipe =
     method stopped = fst stopped
 
     method private loop () =
-      let%lwt () = Lwt_io.printf "Default loop\n%!" in
+      Logs.debug (fun m -> m "Default loop for module %s instance %s" name instance);
       let%lwt () = Lwt_unix.sleep 1.0 in
       self#loop ()
 
@@ -60,7 +60,6 @@ class virtual ['a] base_modulo instance status_pipe =
       (fst ready)
 
     method stop () : unit Lwt.t =
-      (* Log.Global.debug ~tags "Thread is terminating"; *)
       let%lwt () = (fst ready) in
       stop_request <- true;
       fst stopped
