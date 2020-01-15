@@ -48,14 +48,14 @@ class ['message, 'a] modulo instance_name status_pipe color sep : ['a] Lwt_modul
       end
       else Lwt.return ()
 
-  method! json () =
-    let bl = {I3bar_protocol.Block.default with
-      full_text = format_full state;
-      short_text = format_short state;
-      color;
-      name;
-      instance = instance_name;
-      separator = sep;
-    } in
-    Yojson.Safe.to_string (I3bar_protocol.Block.to_yojson bl) |> Lwt.return
+    method! json () =
+      let bl = {I3bar_protocol.Block.default with
+        full_text = format_full state;
+        short_text = format_short state;
+        color;
+        name;
+        instance = instance_name;
+        separator = sep;
+      } in
+      Yojson.Safe.to_string (I3bar_protocol.Block.to_yojson bl) |> Lwt.return
 end
