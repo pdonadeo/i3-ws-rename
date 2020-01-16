@@ -46,22 +46,23 @@ module PulseAudioInterface = struct
       )
     end
 
-  let subscribe_callback c type_ idx userdata =
-    let _facility = (Pa.Subscription_event_type_t.to_int type_)
-                    land (Pa.Subscription_event_type_t.to_int `PA_SUBSCRIPTION_EVENT_FACILITY_MASK)
-                    |> Pa.Subscription_event_type_t.of_int in
-    match _facility with
-    | ` PA_SUBSCRIPTION_EVENT_SINK -> begin
-      let op = Pa.context_get_sink_info_by_index c idx sink_info_callback userdata in
-      Pa.operation_unref op
-    end
-    | _ -> failwith "subscribe_callback: Got event we aren't expecting."
-
   let server_info_callback c (i : Pa.Server_info.t structure ptr) userdata =
     let default_sink_name = getf (!@i) Pa.Server_info.default_sink_name in
     Logs.debug (fun m -> m "default sink name = %s" default_sink_name);
     let op = Pa.context_get_sink_info_by_name c default_sink_name sink_info_callback userdata in
     Pa.operation_unref op
+
+  let subscribe_callback _c type_ _idx ud_c =
+    let ud : userdata = Ctypes.Root.get ud_c in
+    let facility = (Pa.Subscription_event_type_t.to_int type_)
+                    land (Pa.Subscription_event_type_t.to_int `PA_SUBSCRIPTION_EVENT_FACILITY_MASK)
+                    |> Pa.Subscription_event_type_t.of_int in
+    match facility with
+    | ` PA_SUBSCRIPTION_EVENT_SINK -> begin
+      let op = Pa.context_get_server_info ud.context server_info_callback ud_c in
+      Pa.operation_unref op;
+    end
+    | _ -> failwith "subscribe_callback: Got event we aren't expecting."
 
   let rec context_state_callback _context ud_c =
     let ud : userdata = Ctypes.Root.get ud_c in
