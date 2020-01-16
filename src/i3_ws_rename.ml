@@ -180,13 +180,18 @@ let rec protected_loop conf conn =
 
 let rec gc_loop () =
   let open Gc in
+  let path = "/proc/" ^ (Unix.getpid () |> string_of_int) ^ "/status" in
   let%lwt () = Lwt_unix.sleep 60.0 in
   Logs.debug (fun m -> m "GARBAGE COLLECTION LOOP");
   let stat' = stat () in
+  let%lwt memstats = Utils.get_meminfo ~path () in
   Logs.debug (fun m -> m "BEFORE GC: heap_words = %d; live_words = %d" stat'.heap_words stat'.live_words);
+  Logs.debug (fun m -> m "           VmRSS = %d" (BatMap.String.find "VmRSS" memstats));
   compact ();
   let stat' = stat () in
+  let%lwt memstats = Utils.get_meminfo ~path () in
   Logs.debug (fun m -> m "AFTER  GC: heap_words = %d; live_words = %d" stat'.heap_words stat'.live_words);
+  Logs.debug (fun m -> m "           VmRSS = %d" (BatMap.String.find "VmRSS" memstats));
   gc_loop ()
 
 let main unique verbose log_fname conf_fname =
