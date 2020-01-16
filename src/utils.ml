@@ -103,3 +103,23 @@ let get_default_conf_fname () =
   end
   | None -> skip_xdg_config_home ()
 
+let get_meminfo ?(path="/proc/meminfo") () =
+  let open Lwt_io in
+  with_file ~flags:[O_RDONLY] ~mode:Input path (fun ic ->
+    let%lwt lines = read_lines ic |> Lwt_stream.to_list in
+
+    let stats = ListLabels.fold_left ~init:BatMap.String.empty ~f:(fun stats line ->
+      let tokens =
+        BatString.replace_chars (function | '\t' -> " " | x -> String.make 1 x) line
+        |> BatString.split_on_char ' '
+        |> ListLabels.filter ~f:(fun t -> if String.equal t "" then false else true)
+        |> Array.of_list
+      in
+      let name = tokens.(0) |> BatString.strip ~chars:":" in
+      try
+        let val_kb = tokens.(1) |> int_of_string in
+        BatMap.String.add name val_kb stats
+      with _ -> stats
+    ) lines in
+    Lwt.return stats
+  )
