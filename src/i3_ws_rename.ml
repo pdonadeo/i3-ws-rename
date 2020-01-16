@@ -178,6 +178,17 @@ let rec protected_loop conf conn =
     end
   end
 
+let rec gc_loop () =
+  let open Gc in
+  let%lwt () = Lwt_unix.sleep 60.0 in
+  Logs.debug (fun m -> m "GARBAGE COLLECTION LOOP");
+  let stat' = stat () in
+  Logs.debug (fun m -> m "BEFORE GC: heap_words = %d; live_words = %d" stat'.heap_words stat'.live_words);
+  compact ();
+  let stat' = stat () in
+  Logs.debug (fun m -> m "AFTER  GC: heap_words = %d; live_words = %d" stat'.heap_words stat'.live_words);
+  gc_loop ()
+
 let main unique verbose log_fname conf_fname =
   Logs.set_reporter (Reporter.lwt_file_reporter (Some log_fname));
   if verbose
@@ -185,6 +196,8 @@ let main unique verbose log_fname conf_fname =
     else Logs.set_level (Some Logs.Info);
 
   let%lwt conf = Conf.read_configuration conf_fname in
+
+  Lwt.async gc_loop;
 
   Lwt.async I3_status.entry_point;
 
