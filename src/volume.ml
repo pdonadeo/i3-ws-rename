@@ -64,10 +64,10 @@ module PulseAudioInterface = struct
     end
     | _ -> failwith "subscribe_callback: Got event we aren't expecting."
 
-  let rec context_state_callback _context ud_c =
+  let rec context_state_callback context ud_c =
     let ud : userdata = Ctypes.Root.get ud_c in
 
-    let state = Pa.context_get_state ud.context in
+    let state = Pa.context_get_state context in
     match state with
     | `PA_CONTEXT_UNCONNECTED
     | `PA_CONTEXT_CONNECTING
@@ -75,10 +75,10 @@ module PulseAudioInterface = struct
     | `PA_CONTEXT_SETTING_NAME -> ()
     | `PA_CONTEXT_READY -> begin
       Logs.debug (fun m -> m "PulseAudio connection established.");
-      let op = Pa.context_get_server_info ud.context server_info_callback ud_c in
+      let op = Pa.context_get_server_info context server_info_callback ud_c in
       Pa.operation_unref op;
-      Pa.context_set_subscribe_callback ud.context subscribe_callback ud_c;
-      let op = Pa.context_subscribe ud.context `PA_SUBSCRIPTION_MASK_SINK null null in
+      Pa.context_set_subscribe_callback context subscribe_callback ud_c;
+      let op = Pa.context_subscribe context `PA_SUBSCRIPTION_MASK_SINK null null in
       Pa.operation_unref op
     end
     | `PA_CONTEXT_FAILED -> begin
