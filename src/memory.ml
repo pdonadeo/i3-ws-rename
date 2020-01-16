@@ -2,24 +2,6 @@ let delay = 1.0
 
 let spf = Printf.sprintf
 
-let get_meminfo () =
-  let open Lwt_io in
-  with_file ~flags:[O_RDONLY] ~mode:Input "/proc/meminfo" (fun ic ->
-    let%lwt lines = read_lines ic |> Lwt_stream.to_list in
-
-    let stats = ListLabels.fold_left ~init:BatMap.String.empty ~f:(fun stats line ->
-      let tokens =
-        BatString.split_on_char ' ' line
-        |> ListLabels.filter ~f:(fun t -> if String.equal t "" then false else true)
-        |> Array.of_list
-      in
-      let name = tokens.(0) |> BatString.strip ~chars:":" in
-      let val_kb = tokens.(1) |> int_of_string in
-      BatMap.String.add name val_kb stats
-    ) lines in
-    Lwt.return stats
-  )
-
 let compute_mem_used meminfo =
   let mem_total = BatMap.String.find "MemTotal" meminfo in
   let mem_free = BatMap.String.find "MemFree" meminfo in
@@ -48,7 +30,7 @@ class ['a] modulo instance_name status_pipe color_good color_degraded color_bad 
     val mutable state = None
 
     method! private loop () =
-      let%lwt mem_stats = get_meminfo () in
+      let%lwt mem_stats = Utils.get_meminfo () in
       let used_mem_perc, used_mem_KiB, used_str, unity = compute_mem_used mem_stats in
 
       let%lwt result =
