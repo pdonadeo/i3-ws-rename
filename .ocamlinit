@@ -8,6 +8,12 @@
 #require "fmt";;
 #require "batteries";;
 
+#require "obus";;
+#require "obus.network_manager";;
+#require "obus.upower";;
+
+#require "lwt_react";;
+
 #directory "_build/default/src";;
 #directory "_build/default/src/.i3_ws_rename.eobjs/byte";;
 
