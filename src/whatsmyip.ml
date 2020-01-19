@@ -36,9 +36,6 @@ class ['a] modulo instance_name status_pipe color_good color_bad sep : ['a] Lwt_
     val mutable internet_state = Unknown_state
     val mutable show_state = false
 
-    initializer
-      ignore (color_good, color_bad, sep)
-
     method! private loop () =
       let%lwt res = get_public_ip "https://ifconfig.co/ip" in
 
@@ -55,7 +52,7 @@ class ['a] modulo instance_name status_pipe color_good color_bad sep : ['a] Lwt_
       then Lwt_pipe.write status_pipe (`Status_change (name, instance_name))
       else Lwt.return true in
 
-      let%lwt () = Lwt_unix.sleep 1.0 in
+      let%lwt () = Lwt_unix.sleep delay in
       self#loop ()
 
     method! private read_loop () =
