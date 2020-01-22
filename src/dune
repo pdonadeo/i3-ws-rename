@@ -16,7 +16,8 @@
            volume
            path_exists
            whatsmyip
-           unix_ext)
+           unix_ext
+           vpn_status)
   (foreign_stubs (language c) (names unix_ext_stubs))
   (preprocess (pps lwt
                    lwt.unix
@@ -37,6 +38,8 @@
              curl.lwt
              glib
              pulse
+             obus
+             obus.network_manager
              batteries))
 
 ;(alias
