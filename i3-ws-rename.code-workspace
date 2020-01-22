@@ -2,7 +2,17 @@
 	"folders": [
 		{
 			"path": "."
+		},
+        {
+			"path": "../obus/"
 		}
 	],
-	"settings": {}
+	"settings": {
+		"gitlens.currentLine.enabled": false,
+		"gitlens.hovers.currentLine.over": "line",
+		"gitlens.codeLens.enabled": false,
+		"gitlens.hovers.enabled": false,
+		"gitlens.views.repositories.enabled": true,
+		"gitlens.defaultDateStyle": "relative"
+	}
 }
