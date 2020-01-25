@@ -1,4 +1,4 @@
-let delay = 1.0
+let delay = 5.0
 
 let spf = Printf.sprintf
 

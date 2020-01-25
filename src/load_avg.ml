@@ -14,9 +14,6 @@ let get_cores () =
     Lwt.return (Float.of_int count)
   )
 
-(* let getloadavg () = (* TODO *)
-  1., 2., 3. *)
-
 class ['a] modulo instance_name status_pipe color_good color_degraded color_bad sep : ['a] Lwt_module.modulo =
   object (self)
     constraint 'a = [ `r | `w]
