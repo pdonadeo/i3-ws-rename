@@ -17,7 +17,10 @@
            path_exists
            whatsmyip
            unix_ext
-           vpn_status)
+           vpn_status
+           spotify_interfaces
+           spotify_client
+           spotify)
   (foreign_stubs (language c) (names unix_ext_stubs))
   (preprocess (pps lwt
                    lwt.unix
@@ -40,7 +43,8 @@
              pulse
              obus
              obus.network_manager
-             batteries))
+             batteries
+             uutf))
 
 ;(alias
 ;  (name   compress)
