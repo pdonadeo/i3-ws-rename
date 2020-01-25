@@ -7,8 +7,10 @@
 #require "ppx_deriving.show";;
 #require "fmt";;
 #require "batteries";;
+#require "lwt-pipe";;
 
 #require "obus";;
+#require "obus.ppx";;
 #require "obus.network_manager";;
 #require "obus.upower";;
 
@@ -21,3 +23,7 @@
 #load "utils.cmo";;
 #load "conf.cmo";;
 #load "i3bar_protocol.cmo";;
+#load "lwt_module.cmo";;
+
+#warnings "-22";;
+#warn_error "-22";;

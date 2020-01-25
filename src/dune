@@ -46,10 +46,6 @@
              batteries
              uutf))
 
-;(alias
-;  (name   compress)
-;  (deps   i3_ws_rename.exe)
-;  (action (run upx i3_ws_rename.exe)))
 (rule
   (alias compress)
   (action (run upx i3_ws_rename.exe))
