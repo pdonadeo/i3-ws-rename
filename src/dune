@@ -53,4 +53,5 @@
 
 (install
   (section bin)
+  (package i3-ws-rename)
   (files (i3_ws_rename.exe as i3-ws-rename)))

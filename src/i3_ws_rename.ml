@@ -241,7 +241,7 @@ let info =
     `S Manpage.s_bugs;
     `P "Bug reports on GitHub: https://github.com/pdonadeo/i3-ws-rename/issues" ]
   in
-  Term.info "i3-ws-rename" ~version:"%%VERSION%%" ~doc ~exits:Term.default_exits ~man
+  Term.info "%%NAME%%" ~version:"%%VERSION%%" ~doc ~exits:Term.default_exits ~man
 
 let main' u daemon verbose log_fname conf_fname =
   let cd = Unix.getcwd () in

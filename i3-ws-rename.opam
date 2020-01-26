@@ -1,7 +1,7 @@
 opam-version: "2.0"
 name: "i3-ws-rename"
 version: "1.0"
-synopsis: "Renames i3 workspaces using Font Awesome"
+synopsis: "Renames i3 workspaces using Font Awesome and handle status"
 description: "
 TODO
 "
@@ -9,12 +9,12 @@ maintainer: "Paolo Donadeo <p.donadeo@gmail.com>"
 authors: "Paolo Donadeo <p.donadeo@gmail.com>"
 build: [
   ["dune" "subst"] {pinned}
-  ["dune" "build" "@install"]
-  ["dune" "build" "-j" jobs "@compress" "-p" name]
+  ["dune" "build" "-j" jobs "-p" name "@install"]
+  ["dune" "build" "@compress"]
 ]
-dev-repo: "git@github.com:pdonadeo/i3-ws-rename.git"
+dev-repo: "git+https://github.com/pdonadeo/i3-ws-rename.git"
 post-messages: [
-    "Program installed in %{sbin}%/i3-ws-rename"
+    "Program installed in %{bin}%/i3-ws-rename"
     {success & !user-setup:installed}
 ]
 depends: [
