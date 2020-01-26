@@ -23,6 +23,13 @@ depends: [
     "logs"
     "ppx_deriving_yojson"
     "i3ipc"
+    "uutf"
+    "batteries"
+    "obus"
+    "ocurl"
+    "lwt_glib"
+    "ctypes"
+    "ctypes-foreign"
     "dune" { build }
     "merlin" { build }
     "ocp-indent" { build }
