@@ -28,7 +28,7 @@ let string_carousel ?(max_l=40) ~start str =
     let l = Array.length ustr in
     if l > max_l then (
       let ustr = Array.append ustr [| (Uchar.of_int 32); (Uchar.of_int 8212); (Uchar.of_int 32)|] in
-      let copy_n = 1 + ((foi l) /. (foi max_l) |> ceil |> iof) in
+      let copy_n = 1 + ((foi (l + 3)) /. (foi max_l) |> ceil |> iof) in
       let rep = Array.make copy_n ustr |> Array.to_list |> Array.concat in
       let part = Array.sub rep start max_l in
       Ok (string_of_utf8 part)
