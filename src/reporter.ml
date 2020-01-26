@@ -1,5 +1,7 @@
 open Logs
 
+let spf = Printf.sprintf
+
 let ts () =
   let open Unix in
 
@@ -13,7 +15,7 @@ let ts () =
        tm_wday = _wday;
        tm_yday = _yday;
        tm_isdst = _isdst} = localtime n in
-  let milli = (n -. (Float.floor n)) *. 1000. |> Float.round |> Float.to_int |> string_of_int in
+  let milli = (n -. (Float.floor n)) *. 1000. |> Float.round |> Float.to_int |> spf "%03d" in
   Printf.sprintf "%04d-%02d-%02d %02d:%02d:%02d.%s" (year + 1900) (mon + 1) mday hour min sec milli
 
 let my_reporter formatter =
