@@ -50,7 +50,7 @@ class ['a] modulo instance_name status_pipe color_good color_degraded color_bad 
         | _ -> "?" in
       let full_text, short_text = match state with
       | None -> "N/A", ""
-      | Some s -> spf "%s %d%%" icon s, spf "%s%d" icon s in
+      | Some s -> spf "%s %d%%" icon s, spf "%s %d" icon s in
       let color =
         match state with
         | None -> color_good
