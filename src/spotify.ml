@@ -74,11 +74,16 @@ class ['a] modulo instance_name status_pipe color_play color_pause sep : ['a] Lw
     inherit ['a] Lwt_module.base_modulo instance_name status_pipe
 
     val! name = "spotify"
-    val banner_max_length = 40
     val mutable current_song_props = BatMap.String.empty
     val mutable current_status = Not_running
+
+    val banner_max_length = 40
     val mutable banner_index = 0
     val mutable banner = ""
+
+    val short_banner_max_length = 20
+    val mutable short_banner_index = 0
+    val mutable short_banner = ""
 
     method private map_of_metadata m =
       let open OBus_value in
@@ -179,29 +184,39 @@ class ['a] modulo instance_name status_pipe color_play color_pause sep : ['a] Lw
       | None -> Lwt.return () in
       self#read_loop' player_proxy ()
 
-    method private carousel () =
-      let%lwt () = Lwt_unix.sleep 1.0 in
+    method private update_carousel complete_text =
+      let text_l = String.length complete_text in
+      if text_l > banner_max_length || text_l > short_banner_max_length then begin
+        let new_banner = string_carousel ~max_l:banner_max_length ~start:banner_index complete_text |> Stdlib.Result.get_ok in
+        banner_index <- (banner_index + 1) mod banner_max_length;
+        banner <- new_banner;
+
+        let new_short_banner = string_carousel ~max_l:short_banner_max_length ~start:short_banner_index complete_text |> Stdlib.Result.get_ok in
+        short_banner_index <- (short_banner_index + 1) mod short_banner_max_length;
+        short_banner <- new_short_banner;
+        true
+      end else begin
+        if complete_text <> banner || complete_text <> short_banner then begin
+          banner <- complete_text;
+          short_banner <- complete_text;
+          true
+        end else false
+      end
+
+    method private carousel_loop () =
+      let%lwt () = Lwt_unix.sleep 0.8 in
       if current_status <> Not_running then begin
         let text =
           let artist = BatMap.String.find_default "" "xesam:artist" current_song_props in
           let title = BatMap.String.find_default "" "xesam:title" current_song_props in
           spf "%s — %s" artist title
         in
-        if String.length text > banner_max_length then begin
-          let new_banner =
-            string_carousel ~max_l:banner_max_length ~start:banner_index text |> Stdlib.Result.get_ok in
-          banner_index <- (banner_index + 1) mod banner_max_length;
-          banner <- new_banner;
+        let banner_changed = self#update_carousel text in
+        if banner_changed then begin
           let%lwt _ = Lwt_pipe.write status_pipe (`Status_change (name, instance_name)) in
-          self#carousel ()
-        end else begin
-          if banner <> text then begin
-            banner <- text;
-            let%lwt _ = Lwt_pipe.write status_pipe (`Status_change (name, instance_name)) in
-            self#carousel ()
-          end else self#carousel ()
-        end
-      end else self#carousel ()
+          self#carousel_loop ()
+        end else self#carousel_loop ()
+      end else self#carousel_loop ()
 
     method! run () : unit Lwt.t =
       let%lwt bus = OBus_bus.session () in
@@ -216,7 +231,7 @@ class ['a] modulo instance_name status_pipe color_play color_pause sep : ['a] Lw
       Lwt.async (self#status_listener player_proxy);
       Lwt.async (self#alive_loop player_proxy);
       Lwt.async (self#read_loop' player_proxy);
-      Lwt.async (self#carousel);
+      Lwt.async (self#carousel_loop);
 
       Lwt.wakeup (snd ready) ();
       (fst ready)
@@ -224,16 +239,17 @@ class ['a] modulo instance_name status_pipe color_play color_pause sep : ['a] Lw
     method! json () =
       let icon = "" in
       let summary = spf "%s %s" icon banner in
+      let short_summary = spf "%s %s" icon short_banner in
 
-      let full_text, color =
+      let full_text, short_text, color =
         match current_status with
-        | Not_running -> "", color_play
-        | Playing -> summary, color_play
-        | Paused -> summary, color_pause in
+        | Not_running -> "", "", color_play
+        | Playing -> summary, short_summary, color_play
+        | Paused -> summary, short_summary, color_pause in
 
       let bl = {I3bar_protocol.Block.default with
         full_text;
-        short_text = "";
+        short_text;
         color;
         name;
         instance = instance_name;
