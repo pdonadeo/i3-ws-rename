@@ -59,7 +59,7 @@ class ['a] modulo instance_name status_pipe color_good color_degraded color_bad 
         match state with
         | None -> color_good, "", ""
         | Some (p, _, s, u) when 0. <= p && p <= 50. ->
-            color_good, spf "%s %s %s" icon s u, ""
+            color_good, spf "%s %s %s" icon s u, icon
         | Some (p, _, s, u) when 50. < p && p <= 75. ->
             color_degraded, spf "%s %s %s" icon s u, spf "%s %s %s" icon s u
         | Some (_, _, s, u) ->

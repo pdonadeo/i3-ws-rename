@@ -55,7 +55,7 @@ class ['a] modulo instance_name status_pipe color_good color_degraded color_bad 
         match state, load_perc with
         | None, _ -> color_good, "", ""
         | Some l, lp when 0. <= lp && lp <= 50. ->
-            color_good, spf "%s %0.2f " icon l, ""
+            color_good, spf "%s %0.2f " icon l, icon^" "
         | Some l, lp when 50. < lp && lp <= 75. ->
             color_degraded, spf "%s %0.2f " icon l, spf "%s %0.2f " icon l
         | Some l, _ ->
