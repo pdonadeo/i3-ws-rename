@@ -82,7 +82,7 @@ class ['a] modulo instance_name status_pipe color_good color_bad sep : ['a] Lwt_
 
       let bl = {I3bar_protocol.Block.default with
         full_text;
-        short_text = icon;
+        short_text = full_text;
         color;
         name;
         instance = instance_name;
