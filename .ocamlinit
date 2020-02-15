@@ -27,3 +27,5 @@
 
 #warnings "-22";;
 #warn_error "-22";;
+
+#require "uutf";;

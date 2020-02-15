@@ -20,21 +20,15 @@ let string_of_utf8 u =
   Uutf.encode enc `End |> ignore;
   Buffer.contents b
 
-let string_carousel ?(max_l=40) ~start str =
-  assert (start < max_l);
-  let ustr_or_err = utf8_of_string str in
-  match ustr_or_err with
-  | Ok ustr -> begin
-    let l = Array.length ustr in
-    if l > max_l then (
-      let ustr = Array.append ustr [| (Uchar.of_int 32); (Uchar.of_int 8212); (Uchar.of_int 32)|] in
-      let copy_n = 1 + ((foi (l + 3)) /. (foi max_l) |> ceil |> iof) in
-      let rep = Array.make copy_n ustr |> Array.to_list |> Array.concat in
-      let part = Array.sub rep start max_l in
-      Ok (string_of_utf8 part)
-    ) else Ok (ustr |> string_of_utf8)
-  end
-  | Error e -> Error e
+let string_carousel ?(max_l=40) ~start ustr =
+  let l = Array.length ustr in
+  assert (start < l);
+
+  if l > max_l then (
+    let copy_n = 1 + ((foi l) /. (foi max_l) |> ceil |> iof) in
+    let rep = Array.make copy_n ustr |> Array.to_list |> Array.concat in
+    Array.sub rep start max_l
+  ) else ustr
 
 exception Service_unknown of string
 module M1 =
@@ -185,15 +179,24 @@ class ['a] modulo instance_name status_pipe color_play color_pause sep : ['a] Lw
       self#read_loop' player_proxy ()
 
     method private update_carousel complete_text =
-      let text_l = String.length complete_text in
-      if text_l > banner_max_length || text_l > short_banner_max_length then begin
-        let new_banner = string_carousel ~max_l:banner_max_length ~start:banner_index complete_text |> Stdlib.Result.get_ok in
-        banner_index <- (banner_index + 1) mod banner_max_length;
-        banner <- new_banner;
+      let text_utf8 = utf8_of_string complete_text |> Stdlib.Result.get_ok in
+      let text_l = Array.length text_utf8 in
 
-        let new_short_banner = string_carousel ~max_l:short_banner_max_length ~start:short_banner_index complete_text |> Stdlib.Result.get_ok in
-        short_banner_index <- (short_banner_index + 1) mod short_banner_max_length;
-        short_banner <- new_short_banner;
+      if text_l > banner_max_length || text_l > short_banner_max_length then begin
+        let text_utf8 = Array.append text_utf8 [| (Uchar.of_int 32); (Uchar.of_int 8212); (Uchar.of_int 32) |] in
+        let text_l = Array.length text_utf8 in
+
+        if text_l > banner_max_length then begin
+          let new_banner = string_carousel ~max_l:banner_max_length ~start:banner_index text_utf8 in
+          banner_index <- (banner_index + 1) mod text_l;
+          banner <- (string_of_utf8 new_banner);
+        end;
+
+        if text_l > short_banner_max_length then begin
+          let new_short_banner = string_carousel ~max_l:short_banner_max_length ~start:short_banner_index text_utf8 in
+          short_banner_index <- (short_banner_index + 1) mod text_l;
+          short_banner <- (string_of_utf8 new_short_banner);
+        end;
         true
       end else begin
         if complete_text <> banner || complete_text <> short_banner then begin
