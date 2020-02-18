@@ -182,29 +182,32 @@ class ['a] modulo instance_name status_pipe color_play color_pause sep : ['a] Lw
       let text_utf8 = utf8_of_string complete_text |> Stdlib.Result.get_ok in
       let text_l = Array.length text_utf8 in
 
-      if text_l > banner_max_length || text_l > short_banner_max_length then begin
+      let banner_changed = ref false in
+
+      if text_l > banner_max_length then begin
         let text_utf8 = Array.append text_utf8 [| (Uchar.of_int 32); (Uchar.of_int 8212); (Uchar.of_int 32) |] in
         let text_l = Array.length text_utf8 in
+        let new_banner = string_carousel ~max_l:banner_max_length ~start:banner_index text_utf8 in
+        banner_index <- (banner_index + 1) mod text_l;
+        banner <- (string_of_utf8 new_banner);
+        banner_changed := true;
+      end else if complete_text <> banner then begin
+        banner <- complete_text;
+        banner_changed := true;
+      end;
 
-        if text_l > banner_max_length then begin
-          let new_banner = string_carousel ~max_l:banner_max_length ~start:banner_index text_utf8 in
-          banner_index <- (banner_index + 1) mod text_l;
-          banner <- (string_of_utf8 new_banner);
-        end;
-
-        if text_l > short_banner_max_length then begin
-          let new_short_banner = string_carousel ~max_l:short_banner_max_length ~start:short_banner_index text_utf8 in
-          short_banner_index <- (short_banner_index + 1) mod text_l;
-          short_banner <- (string_of_utf8 new_short_banner);
-        end;
-        true
-      end else begin
-        if complete_text <> banner || complete_text <> short_banner then begin
-          banner <- complete_text;
-          short_banner <- complete_text;
-          true
-        end else false
-      end
+      if text_l > short_banner_max_length then begin
+        let text_utf8 = Array.append text_utf8 [| (Uchar.of_int 32); (Uchar.of_int 8212); (Uchar.of_int 32) |] in
+        let text_l = Array.length text_utf8 in
+        let new_short_banner = string_carousel ~max_l:short_banner_max_length ~start:short_banner_index text_utf8 in
+        short_banner_index <- (short_banner_index + 1) mod text_l;
+        short_banner <- (string_of_utf8 new_short_banner);
+        banner_changed := true;
+      end else if complete_text <> short_banner then begin
+        short_banner <- complete_text;
+        banner_changed := true;
+      end;
+      !banner_changed
 
     method private carousel_loop () =
       let%lwt () = Lwt_unix.sleep 0.8 in
