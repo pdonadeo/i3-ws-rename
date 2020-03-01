@@ -22,7 +22,7 @@ let string_of_utf8 u =
 
 let string_carousel ?(max_l=40) ~start ustr =
   let l = Array.length ustr in
-  assert (start < l);
+  let start = if start < l then start else l - 1 in
 
   if l > max_l then (
     let copy_n = 1 + ((foi l) /. (foi max_l) |> ceil |> iof) in
