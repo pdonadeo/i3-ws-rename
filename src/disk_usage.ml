@@ -6,7 +6,7 @@ let df () =
   let open BatString in
   try%lwt
     let%lwt res = Lwt_process.pread ("/usr/bin/df", [|"df"; "-k"|]) in
-    let lines = nsplit ~by:"\n" res |> List.tl |> List.filter ((<>) "") in
+    let lines = split_on_string ~by:"\n" res |> List.tl |> List.filter ((<>) "") in
     let init = BatMap.String.empty in
     let map = List.fold_left (fun m line ->
       let usage_mount = BatList.split_at 4 (split_on_char ' ' line |> List.filter ((<>) "")) |> snd in
