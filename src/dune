@@ -44,7 +44,8 @@
              obus
              obus.network_manager
              batteries
-             uutf))
+             uutf
+             str))
 
 (rule
   (alias compress)

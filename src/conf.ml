@@ -65,7 +65,14 @@ let search_class_instance conf class_ instance =
   let instance = String.lowercase_ascii instance in
   Logs.debug (fun m -> m "search_class_instance %s %s" class_ instance);
   List.filter (fun record -> record.window_class = class_) conf
-  |> List.filter (fun record -> record.window_instance = Some instance)
+  |> List.filter (fun record ->
+      let window_instance =
+        match record.window_instance with
+        | Some w -> w | None -> "THIS SHOULD NEVER MATCH" in
+      if BatString.ends_with window_instance "*"
+      then Str.string_match (Str.regexp window_instance) instance 0
+      else record.window_instance = Some instance
+  )
   |> hd_opt
   |> opt_map ~f:(fun r ->
       let icon = r.fa_icon in
