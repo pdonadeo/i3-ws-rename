@@ -8,7 +8,6 @@ class type virtual ['a] modulo =
 
     val ready : unit Lwt.t * unit Lwt.u
     val stopped : unit Lwt.t * unit Lwt.u
-    val mutable stop_request : bool
     val tags : (string * string) list
     val name : string
     val pipe : (I3bar_protocol.Click_event.t, 'a) Lwt_pipe.t
@@ -31,7 +30,6 @@ class virtual ['a] base_modulo instance status_pipe =
 
     val ready = Lwt.wait ()
     val stopped = Lwt.wait ()
-    val mutable stop_request = false
     val tags = ["GENERIC_THREAD", ""]
     val name = "GENERIC NAME"
     val pipe = Lwt_pipe.create ~max_size:10 ()
@@ -61,7 +59,7 @@ class virtual ['a] base_modulo instance status_pipe =
 
     method stop () : unit Lwt.t =
       let%lwt () = (fst ready) in
-      stop_request <- true;
+      Lwt.wakeup (snd stopped) ();
       fst stopped
 
     method ready () : unit Lwt.t =
