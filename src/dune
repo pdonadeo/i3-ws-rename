@@ -15,6 +15,7 @@
            clock
            volume
            path_exists
+           case_fan_leds
            whatsmyip
            unix_ext
            vpn_status
@@ -45,7 +46,8 @@
              obus.network_manager
              batteries
              uutf
-             str))
+             str
+             clnp))
 
 (rule
   (alias compress)

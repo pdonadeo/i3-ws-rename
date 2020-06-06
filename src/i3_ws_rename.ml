@@ -1,7 +1,7 @@
 open Utils
 
 
-let must_shutdown = ref false
+let shutdown, do_shutdown = Lwt.wait ()
 
 let redirect_to_dev_null ~mode fd =
   let dev_null = Unix.openfile "/dev/null" [mode] 0o777 in
@@ -139,39 +139,49 @@ let rec loop conf conn =
   let b = Buffer.create 1024 in
   let fmt = Format.formatter_of_buffer b in
 
-  let%lwt ev = next_event conn in
-  let%lwt () = match ev with
-    | Window info -> begin
-      Event.pp_window_event_info fmt info;
-      Format.pp_print_flush fmt ();
-      Logs.debug (fun m -> m "EVENT: %s" (Buffer.contents b));
-      handle_win_event conf conn info
-    end
-    | Shutdown reason -> begin
-      Event.pp_shutdown_reason fmt reason;
-      Format.pp_print_newline fmt ();
-      Format.pp_print_flush fmt ();
-      Logs.debug (fun m -> m "EVENT: %s" (Buffer.contents b));
-      (match reason with
-      | Restart -> must_shutdown := false
-      | Exit -> must_shutdown := true);
-      Lwt.return ()
-    end
-    | _ -> Lwt.return () in
-  Gc.compact ();
-  loop conf conn
+  let ev = Lwt.choose [
+    Lwt.map (fun e -> `I3_event e) (next_event conn);
+    Lwt.map (fun _ -> `Shutdown) shutdown;
+  ] in
+
+  match%lwt ev with
+  | `I3_event ev -> begin
+    let%lwt () = match ev with
+      | Window info -> begin
+        Event.pp_window_event_info fmt info;
+        Format.pp_print_flush fmt ();
+        Logs.debug (fun m -> m "EVENT: %s" (Buffer.contents b));
+        handle_win_event conf conn info
+      end
+      | Shutdown reason -> begin
+        Event.pp_shutdown_reason fmt reason;
+        Format.pp_print_newline fmt ();
+        Format.pp_print_flush fmt ();
+        Logs.debug (fun m -> m "EVENT: %s" (Buffer.contents b));
+        match reason with
+        | Restart -> Lwt.return_unit
+        | Exit -> Lwt.wakeup do_shutdown 0 |> Lwt.return
+      end
+      | _ -> Lwt.return () in
+    Gc.compact ();
+    loop conf conn
+  end
+  | `Shutdown -> begin
+    let%lwt signal = shutdown in
+    Logs.info (fun m -> m "Signal %d received, shutting down..." signal);
+    Lwt.return_unit
+  end
 
 let rec protected_loop conf conn =
   try%lwt loop conf conn
   with I3ipc.Protocol_error e -> begin
     handle_protocol_error e;
-    if !must_shutdown then begin
+    if not (Lwt.is_sleeping shutdown) then begin
       Logs.info (fun m -> m "i3 shutdown, exiting");
       Lwt.return ()
     end else begin
       Logs.info (fun m -> m "i3 is restarting, wait a second...");
       let%lwt () = Lwt_unix.sleep 1.0 in
-      must_shutdown := false;
       let%lwt conn = connect_and_subscribe () in
       Logs.debug (fun m -> m "...reconnected to i3");
       protected_loop conf conn
@@ -194,22 +204,22 @@ let rec gc_loop () =
   Logs.debug (fun m -> m "           VmRSS = %d" (BatMap.String.find "VmRSS" memstats));
   gc_loop ()
 
-let main unique verbose log_fname conf_fname =
+let _sig_handler_id = Lwt_unix.on_signal 15 (fun s -> Lwt.wakeup do_shutdown s)
+let _sig_handler_id = Lwt_unix.on_signal  2 (fun s -> Lwt.wakeup do_shutdown s)
+
+let main _unique verbose log_fname conf_fname =
   Logs.set_reporter (Reporter.lwt_file_reporter (Some log_fname));
   if verbose
-    then Logs.set_level (Some Logs.Debug)
-    else Logs.set_level (Some Logs.Info);
+  then Logs.set_level (Some Logs.Debug)
+  else Logs.set_level (Some Logs.Info);
 
   let%lwt conf = Conf.read_configuration conf_fname in
 
   Lwt.async gc_loop;
-
-  Lwt.async I3_status.entry_point;
-
-  ignore (unique);
-
+  let status_completed = I3_status.entry_point shutdown in
   let%lwt conn = connect_and_subscribe () in
-  protected_loop conf conn
+  let%lwt _ = Lwt.all [protected_loop conf conn; status_completed ()] in
+  Lwt.return_unit
 
 open Cmdliner
 
