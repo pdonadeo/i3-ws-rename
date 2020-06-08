@@ -4,6 +4,8 @@ let foi = float_of_int
 
 let pi = 3.1415926535897932384626433832795028841971693993751058209749445923078164062862089986280348253421170679821480865132823066470938446095505822317253594081284811174502841027019385211055596446229489549303819644288109756659334461284756482337867831652712019091456485669234603486104543266482133936072602491412737245870066063155881748815209209628292540917153643678925903600113305305488204665213841469519415116094330572703657595919530921861173
 
+let name_visible_timeout = 10.0
+
 let rainbow_radar ~state _time =
   let open Corsair_Lighting_Node_Pro in
   let open Color in
@@ -72,6 +74,30 @@ let animations = [
   };
   {
     anim_type = Hw Corsair_Lighting_Node_Pro.({
+      mode = Rainbow_wave;
+      speed = Medium;
+      dir = Clockwise;
+      color_mode = Random_color;
+      color1 = black;
+      color2 = black;
+      color3 = black;
+    });
+    name = "Rainbow wave"
+  };
+  {
+    anim_type = Hw Corsair_Lighting_Node_Pro.({
+      mode = Color_shift;
+      speed = Medium;
+      dir = Clockwise;
+      color_mode = Random_color;
+      color1 = black;
+      color2 = black;
+      color3 = black;
+    });
+    name = "Color shift"
+  };
+  {
+    anim_type = Hw Corsair_Lighting_Node_Pro.({
       mode = Color_pulse;
       speed = Medium;
       dir = Clockwise;
@@ -84,7 +110,7 @@ let animations = [
   };
   {
     anim_type = Hw Corsair_Lighting_Node_Pro.({
-      mode = Rainbow_wave;
+      mode = Color_wave;
       speed = Medium;
       dir = Clockwise;
       color_mode = Random_color;
@@ -92,7 +118,67 @@ let animations = [
       color2 = black;
       color3 = black;
     });
-    name = "Rainbow wave"
+    name = "Color wave"
+  };
+  {
+    anim_type = Hw Corsair_Lighting_Node_Pro.({
+      mode = Visor;
+      speed = Medium;
+      dir = Clockwise;
+      color_mode = Random_color;
+      color1 = black;
+      color2 = black;
+      color3 = black;
+    });
+    name = "Visor"
+  };
+  {
+    anim_type = Hw Corsair_Lighting_Node_Pro.({
+      mode = Marquee;
+      speed = Fast;
+      dir = Clockwise;
+      color_mode = Random_color;
+      color1 = (0x24, 0x26, 0x4d);
+      color2 = black;
+      color3 = black;
+    });
+    name = "Marquee"
+  };
+  {
+    anim_type = Hw Corsair_Lighting_Node_Pro.({
+      mode = Blink;
+      speed = Medium;
+      dir = Clockwise;
+      color_mode = Random_color;
+      color1 = black;
+      color2 = black;
+      color3 = black;
+    });
+    name = "Blink"
+  };
+  {
+    anim_type = Hw Corsair_Lighting_Node_Pro.({
+      mode = Sequential;
+      speed = Medium;
+      dir = Clockwise;
+      color_mode = Random_color;
+      color1 = black;
+      color2 = black;
+      color3 = black;
+    });
+    name = "Sequential"
+  };
+  {
+    anim_type = Hw Corsair_Lighting_Node_Pro.({
+      mode = Rainbow;
+      speed = Medium;
+      dir = Clockwise;
+      color_mode = Random_color;
+      color1 = black;
+      color2 = black;
+      color3 = black;
+    });
+    name = "Rainbow"
   };
   {
     anim_type = Sw rainbow_radar;
@@ -141,7 +227,7 @@ class ['a] modulo instance_name status_pipe color_off color_hw color_sw sep : ['
     method! private loop () =
       let%lwt () = Lwt_unix.sleep 0.25 in
       let%lwt () = if state.show_animation_name = true then begin
-        if (Unix.gettimeofday ()) -. state.show_started > 5. then begin
+        if (Unix.gettimeofday ()) -. state.show_started > name_visible_timeout then begin
           state <- (toggle_show state);
           let%lwt _ = Lwt_pipe.write status_pipe (`Status_change (name, instance_name)) in
           Lwt.return_unit
