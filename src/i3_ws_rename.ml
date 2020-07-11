@@ -280,4 +280,6 @@ let main' u daemon verbose log_fname conf_fname =
 
 let main_t = Term.(const main' $ unique $ daemon $ verbose $ log_fname $ conf_fname)
 
+let () = Printexc.record_backtrace true
+
 let () = Term.exit @@ Term.eval (main_t, info)
