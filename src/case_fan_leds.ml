@@ -314,11 +314,22 @@ class ['a] modulo instance_name status_pipe color_off color_hw color_sw sep : ['
       end
 
     method! run () : unit Lwt.t =
-      let%lwt () = self#init_controller () in
-      let%lwt () = self#set_animation () in
+      let open Printexc in
+      let%lwt () =
+        try%lwt begin
+          let%lwt () = self#init_controller () in
+          let%lwt () = self#set_animation () in
 
-      Lwt.async (self#loop);
-      Lwt.async (self#read_loop);
+          Lwt.async (self#loop);
+          Lwt.async (self#read_loop);
+          Lwt.return ()
+        end
+        with exn -> begin
+          let exn_str = to_string exn in
+          let backtrace = get_backtrace () in
+          Logs.err (fun m -> m "Exception during initialization of Corsair Lighting Node Pro\n\n%s\n%s" exn_str backtrace);
+          Lwt.return ()
+        end in
       Lwt.wakeup (snd ready) ();
       (fst ready)
 
