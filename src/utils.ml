@@ -201,28 +201,32 @@ let get_hwmon_base_dir name =
   Lwt.return res
 
 let get_hwmon_file_map name =
-  let open Lwt_io in
-  let open Lwt_unix in
+  try%lwt
+    let open Lwt_io in
+    let open Lwt_unix in
 
-  let%lwt base = get_hwmon_base_dir name in
-  let base = Option.get base in
+    let%lwt base = get_hwmon_base_dir name in
+    let base = Option.get base in
 
-  let%lwt dir = opendir base in
-  let%lwt entries = Lwt_unix.readdir_n dir 100 in
-  let%lwt () = closedir dir in
+    let%lwt dir = opendir base in
+    let%lwt entries = Lwt_unix.readdir_n dir 100 in
+    let%lwt () = closedir dir in
 
-  Array.sort String.compare entries;
-  let entries = Array.to_list entries |> ListLabels.filter ~f:(fun el -> el.[0] <> '.') in
+    Array.sort String.compare entries;
+    let entries = Array.to_list entries |> ListLabels.filter ~f:(fun el -> el.[0] <> '.') in
 
-  Lwt_list.fold_left_s (fun map fname ->
-    if (BatString.starts_with fname "temp") && (BatString.ends_with fname "_label")
-    then begin
-      let b = BatString.split_on_string ~by:"_" fname |> List.hd in
-      let%lwt label = with_file ~flags:[O_RDONLY] ~mode:Input (base/fname) read_line in
-      BatMap.String.add label (base/(b^"_input")) map |> Lwt.return
-    end
-    else Lwt.return map
-  ) BatMap.String.empty entries
+    let%lwt ret_map =
+      Lwt_list.fold_left_s (fun map fname ->
+        if (BatString.starts_with fname "temp") && (BatString.ends_with fname "_label")
+        then begin
+          let b = BatString.split_on_string ~by:"_" fname |> List.hd in
+          let%lwt label = with_file ~flags:[O_RDONLY] ~mode:Input (base/fname) read_line in
+          BatMap.String.add label (base/(b^"_input")) map |> Lwt.return
+        end
+        else Lwt.return map
+      ) BatMap.String.empty entries in
+    Lwt.return (`Ok ret_map)
+  with _ -> Lwt.return `Device_not_found
 
 let read_temperatures file_map =
   let open Lwt_io in

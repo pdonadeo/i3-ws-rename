@@ -242,12 +242,15 @@ class ['a] modulo instance_name status_pipe color_off color_hw color_sw sep : ['
       end
 
     method! json () =
-      let icon = "" in
       let color = self#get_color () in
-      let full_text =
-        if state.show_animation_name
-        then spf "%s %s" icon (get_current_name state)
-        else icon in
+      let full_text, sep =
+        match controller with
+        | Some _ -> begin
+          if state.show_animation_name
+          then spf "%s %s" fan (get_current_name state), sep
+          else fan, sep
+        end
+        | None -> "", false in
       let bl = {I3bar_protocol.Block.default with
                 full_text;
                 short_text = full_text;
@@ -260,14 +263,20 @@ class ['a] modulo instance_name status_pipe color_off color_hw color_sw sep : ['
 
     method private set_animation () =
       let current = List.nth animations state.current_animation in
-      let c = match controller with Some c -> c | None -> failwith "Impossible" in
-      match current.anim_type with
-      | Hw conf -> Corsair_Lighting_Node_Pro.set_hw_animation c conf
-      | Sw anim -> begin
-        let stop_anim_or_thread = Lwt.choose [ (fst stopped); (fst stop_animation) ] in
-        Lwt.async (fun () -> Animation.run_animation c stop_anim_or_thread ~init:2 ~a:anim);
-        Lwt.return_unit
+      match controller with
+      | Some c -> begin
+        match current.anim_type with
+        | Hw conf -> Corsair_Lighting_Node_Pro.set_hw_animation c conf
+        | Sw anim -> begin
+          let stop_anim_or_thread = Lwt.choose [ (fst stopped); (fst stop_animation) ] in
+          Lwt.async (fun () -> Animation.run_animation c stop_anim_or_thread ~init:2 ~a:anim);
+          Lwt.return_unit
+        end
       end
+      | None ->
+        Logs.info (fun m ->
+          m "(%s,%s) set_animation: Corsair Lighting Node Pro not detected during initialization" name instance_name
+        ) |> Lwt.return
 
     method! private read_loop () =
       let%lwt maybe_msg = Lwt_pipe.read pipe in
@@ -296,37 +305,40 @@ class ['a] modulo instance_name status_pipe color_off color_hw color_sw sep : ['
       self#read_loop ()
 
     method private init_controller () =
-      match controller with
-      | None -> begin
-        let%lwt controller' = Corsair_Lighting_Node_Pro.open_controller () in
-        controller <- Some controller';
-        Lwt.return_unit;
-      end
-      | Some c -> begin
-        let%lwt () = Corsair_Lighting_Node_Pro.close_controller c in
-        let%lwt () = Lwt_unix.sleep 0.2 in
-        let%lwt controller' = Corsair_Lighting_Node_Pro.open_controller () in
-        controller <- Some controller';
-        Lwt.return_unit;
+      try%lwt begin
+        match controller with
+        | None -> begin
+          let%lwt controller' = Corsair_Lighting_Node_Pro.open_controller () in
+          controller <- Some controller';
+          Lwt.return `Ok
+        end
+        | Some c -> begin
+          let%lwt () = Corsair_Lighting_Node_Pro.close_controller c in
+          let%lwt () = Lwt_unix.sleep 0.2 in
+          let%lwt controller' = Corsair_Lighting_Node_Pro.open_controller () in
+          controller <- Some controller';
+          Lwt.return `Ok
+        end
+      end with
+      | exn -> begin
+        let open Printexc in
+        let exn_str = to_string exn in
+        let backtrace = get_backtrace () in
+        Logs.info (fun m -> m "Exception during initialization of Corsair Lighting Node Pro\n\n%s\n%s" exn_str backtrace);
+        Lwt.return `Init_problems
       end
 
     method! run () : unit Lwt.t =
-      let open Printexc in
-      let%lwt () =
-        try%lwt begin
-          let%lwt () = self#init_controller () in
+      let%lwt init_result = self#init_controller () in
+      let%lwt () = match init_result with
+        | `Ok -> begin
           let%lwt () = self#set_animation () in
 
           Lwt.async (self#loop);
           Lwt.async (self#read_loop);
-          Lwt.return ()
+          Lwt.return_unit
         end
-        with exn -> begin
-          let exn_str = to_string exn in
-          let backtrace = get_backtrace () in
-          Logs.err (fun m -> m "Exception during initialization of Corsair Lighting Node Pro\n\n%s\n%s" exn_str backtrace);
-          Lwt.return ()
-        end in
+        | `Init_problems -> Lwt.return_unit in
       Lwt.wakeup (snd ready) ();
       (fst ready)
 

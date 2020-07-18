@@ -28,35 +28,38 @@ class ['a] modulo instance_name status_pipe color_good color_degraded color_bad 
     val mutable k10temp_last_data = []
 
     method! private loop () =
-      let%lwt k10temp_temps = read_temperatures hwmon_file_map_k10temp in
+      match hwmon_file_map_k10temp with
+      | `Ok hwmon_file_map_k10temp -> begin
+        let%lwt k10temp_temps = read_temperatures hwmon_file_map_k10temp in
 
-      let k10temp_last_data' =
-        match BatMap.String.find_opt "Tctl" k10temp_temps with
-        | None -> k10temp_last_data
-        | Some v -> v::k10temp_last_data |> first_n moving_average_length in
-      k10temp_last_data <- k10temp_last_data';
+        let k10temp_last_data' =
+          match BatMap.String.find_opt "Tctl" k10temp_temps with
+          | None -> k10temp_last_data
+          | Some v -> v::k10temp_last_data |> first_n moving_average_length in
+        k10temp_last_data <- k10temp_last_data';
 
-      let k10temp_last_data_str = "[" ^ (List.map string_of_float k10temp_last_data |> String.concat ", ") ^ "]" in
-      Logs.debug (fun m -> m "(%s,%s) Tctl = %s" name instance_name k10temp_last_data_str);
+        let k10temp_last_data_str = "[" ^ (List.map string_of_float k10temp_last_data |> String.concat ", ") ^ "]" in
+        Logs.debug (fun m -> m "(%s,%s) Tctl = %s" name instance_name k10temp_last_data_str);
 
-      let%lwt () =
-        if List.length k10temp_last_data >= moving_average_length then begin
-          let tctl_avg = avg k10temp_last_data in
-          let tctl' = get_range tctl_thresholds tctl_avg in
+        let%lwt () =
+          if List.length k10temp_last_data >= moving_average_length then begin
+            let tctl_avg = avg k10temp_last_data in
+            let tctl' = get_range tctl_thresholds tctl_avg in
 
-          let%lwt _ =
-            if not_same_range state tctl'
-            then Lwt_pipe.write status_pipe (`Status_change (name, instance_name))
-            else Lwt.return_true in
+            let%lwt _ =
+              if not_same_range state tctl'
+              then Lwt_pipe.write status_pipe (`Status_change (name, instance_name))
+              else Lwt.return_true in
 
-          state <- tctl';
+            state <- tctl';
 
-          Logs.info (fun m -> m "(%s,%s) Tctl AVG = %f" name instance_name tctl_avg);
-          Lwt.return_unit
-        end else Lwt.return_unit in
+            Lwt.return_unit
+          end else Lwt.return_unit in
 
-      let%lwt () = Lwt_unix.sleep delay in
-      self#loop ()
+        let%lwt () = Lwt_unix.sleep delay in
+        self#loop ()
+      end
+      | `Device_not_found -> Logs.info (fun m -> m "(%s,%s) Device K10 not found, exiting loop" name instance_name) |> Lwt.return
 
     method! json () =
       let color =
