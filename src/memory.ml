@@ -1,6 +1,7 @@
-let delay = 5.0
+open Constants
 
-let spf = Printf.sprintf
+
+let delay = 5.0
 
 let compute_mem_used meminfo =
   let mem_total = BatMap.String.find "MemTotal" meminfo in

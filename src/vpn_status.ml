@@ -1,4 +1,5 @@
-let spf = Printf.sprintf
+open Constants
+
 
 class ['a] modulo instance_name status_pipe color sep : ['a] Lwt_module.modulo =
   object (self)

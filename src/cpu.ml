@@ -1,6 +1,7 @@
-let delay = 2.0
+open Constants
 
-let spf = Printf.sprintf
+
+let delay = 2.0
 
 let get_cpu_stats () =
   let open Lwt_io in

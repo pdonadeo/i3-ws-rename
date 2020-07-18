@@ -1,6 +1,7 @@
-let delay = 60.0
+open Constants
 
-let spf = Printf.sprintf
+
+let delay = 60.0
 
 let df () =
   let open BatString in

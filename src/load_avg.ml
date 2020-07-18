@@ -1,6 +1,7 @@
-let delay = 1.0
+open Constants
 
-let spf = Printf.sprintf
+
+let delay = 1.0
 
 let get_cores () =
   let open Lwt_io in

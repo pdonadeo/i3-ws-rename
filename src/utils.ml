@@ -8,8 +8,6 @@ end
 
 module StringTuple2Map = BatMap.Make(StringTuple2)
 
-let spf = Printf.sprintf
-
 let connect_and_subscribe () =
   let open I3ipc in
   let%lwt conn = connect () in
@@ -144,12 +142,6 @@ let get_meminfo ?(path="/proc/meminfo") () =
     Lwt.return stats
   )
 
-let thermometer_half = ""
-let temperature_high = ""
-let temperature_hot = ""
-let hdd = ""
-let microchip = ""
-
 type temp_range =
   | Low of float
   | Normal of float
@@ -242,28 +234,3 @@ let read_temperatures file_map =
     let value = (float_of_string value) /. 1000. in
     BatMap.String.add label value map |> Lwt.return
   ) BatMap.String.empty lab_fname_l
-
-(*
-  let open Lwt_io in
-  let open Lwt_unix in
-  let (/) x y = x ^ "/" ^ y in
-
-  let%lwt dir = opendir base in
-  let%lwt entries = Lwt_unix.readdir_n dir 100 in
-  let%lwt () = closedir dir in
-
-  Array.sort String.compare entries;
-  let entries = Array.to_list entries |> ListLabels.filter ~f:(fun el -> el.[0] <> '.') in
-
-  Lwt_list.fold_left_s (fun map fname ->
-    if (BatString.starts_with fname "temp") && (BatString.ends_with fname "_label")
-    then begin
-      let b = BatString.split_on_string ~by:"_" fname |> List.hd in
-      let%lwt label = with_file ~flags:[O_RDONLY] ~mode:Input (base/fname) read_line in
-      let%lwt value = with_file ~flags:[O_RDONLY] ~mode:Input (base/(b^"_input")) read_line in
-      let value = (float_of_string value) /. 1000. in
-      BatMap.String.add label value map |> Lwt.return
-    end
-    else Lwt.return map
-  ) BatMap.String.empty entries
-*)

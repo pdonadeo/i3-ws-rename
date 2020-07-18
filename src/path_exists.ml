@@ -1,7 +1,5 @@
 let delay = 1.0
 
-let spf = Printf.sprintf
-
 class ['a] modulo instance_name status_pipe path icon color sep : ['a] Lwt_module.modulo =
   object (self)
     constraint 'a = [ `r | `w]

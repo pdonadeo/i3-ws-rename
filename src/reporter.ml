@@ -1,6 +1,6 @@
+open Constants
 open Logs
 
-let spf = Printf.sprintf
 
 let ts () =
   let open Unix in

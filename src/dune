@@ -5,6 +5,7 @@
            i3_status
            conf
            fa_icons
+           constants
            utils
            reporter
            disk_usage

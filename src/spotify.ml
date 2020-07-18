@@ -1,6 +1,5 @@
-let spf = Printf.sprintf
-let iof = int_of_float
-let foi = float_of_int
+open Constants
+
 
 let utf8_of_string s =
   let dec = Uutf.decoder ~encoding:`UTF_8 (`String s) in

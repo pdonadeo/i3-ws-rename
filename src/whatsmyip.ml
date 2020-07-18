@@ -1,6 +1,7 @@
-let delay = 5.0
+open Constants
 
-let spf = Printf.sprintf
+
+let delay = 5.0
 
 type status =
   | Unknown_state
