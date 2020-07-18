@@ -10,6 +10,8 @@
            disk_usage
            load_avg
            cpu
+           NVME_temp
+           K10_temp
            memory
            i3bar_protocol
            clock

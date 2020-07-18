@@ -27,6 +27,26 @@ let opt_map o ~f =
   | None -> None
   | Some v -> Some (f v)
 
+
+let first_n n xs =
+  if n <= 0
+  then []
+  else (
+    let rec loop n t accum =
+      if n = 0
+      then List.rev accum, t
+      else (
+        match t with
+        | [] -> xs, [] (* in this case, xs = rev accum *)
+        | hd :: tl -> loop (n - 1) tl (hd :: accum))
+    in
+    loop n xs [] |> fst
+  )
+
+let avg xs =
+  let sum = ListLabels.fold_left xs ~init:0.0 ~f:(fun s v -> s +. v) in
+  sum /. (List.length xs |> Stdlib.float_of_int)
+
 let rec traverse_deep_first_aux (f : 'a -> int -> I3ipc.Reply.node -> I3ipc.Reply.node option -> 'a) (acc : 'a) ?(parent=None) ?(depth=0) (n : I3ipc.Reply.node) : 'a =
   let acc' = f acc depth n parent in
   let children = n.nodes @ n.floating_nodes in
@@ -123,3 +143,127 @@ let get_meminfo ?(path="/proc/meminfo") () =
     ) lines in
     Lwt.return stats
   )
+
+let thermometer_half = ""
+let temperature_high = ""
+let temperature_hot = ""
+let hdd = ""
+let microchip = ""
+
+type temp_range =
+  | Low of float
+  | Normal of float
+  | High of float
+  | Hot of float
+
+let int_of_temp_range r =
+  match r with
+  | Low _ -> 0
+  | Normal _ -> 1
+  | High _ -> 2
+  | Hot _ -> 3
+
+let temp_range_of_int t idx =
+  match idx with
+  | 0 -> Low t
+  | 1 -> Normal t
+  | 2 -> High t
+  | 3 -> Hot t
+  | _ -> raise (Invalid_argument "temp_range_of_int")
+
+let get_temp = function
+  | Low v -> v
+  | Normal v -> v
+  | High v -> v
+  | Hot v -> v
+
+let get_range thresholds v =
+  if v <= thresholds.(1)
+  then (Low v)
+  else if thresholds.(1) < v && v <= thresholds.(3)
+  then (Normal v)
+  else if thresholds.(3) < v && v <= thresholds.(4)
+  then (High v)
+  else (Hot v)
+
+let not_same_range t1 t2 = (int_of_temp_range t1) <> (int_of_temp_range t2)
+
+let get_hwmon_base_dir name =
+  let open Lwt_io in
+  let open Lwt_unix in
+  let (/) x y = x ^ "/" ^ y in
+  let base = "/sys/class/hwmon" in
+  let%lwt dir = opendir base in
+  let%lwt entries = Lwt_unix.readdir_n dir 100 in
+  let%lwt () = closedir dir in
+  Array.sort String.compare entries;
+  let entries = Array.to_list entries |> ListLabels.filter ~f:(fun el -> el.[0] <> '.') in
+  let%lwt res =
+    Lwt_list.fold_left_s (fun acc e ->
+      with_file ~flags:[O_RDONLY] ~mode:Input (base/e/"name") (fun ic ->
+        let%lwt e_name = read_line ic in
+        if e_name = name then Lwt.return (Some (base/e)) else Lwt.return acc
+      )
+    ) None entries in
+
+  Lwt.return res
+
+let get_hwmon_file_map name =
+  let open Lwt_io in
+  let open Lwt_unix in
+
+  let%lwt base = get_hwmon_base_dir name in
+  let base = Option.get base in
+
+  let%lwt dir = opendir base in
+  let%lwt entries = Lwt_unix.readdir_n dir 100 in
+  let%lwt () = closedir dir in
+
+  Array.sort String.compare entries;
+  let entries = Array.to_list entries |> ListLabels.filter ~f:(fun el -> el.[0] <> '.') in
+
+  Lwt_list.fold_left_s (fun map fname ->
+    if (BatString.starts_with fname "temp") && (BatString.ends_with fname "_label")
+    then begin
+      let b = BatString.split_on_string ~by:"_" fname |> List.hd in
+      let%lwt label = with_file ~flags:[O_RDONLY] ~mode:Input (base/fname) read_line in
+      BatMap.String.add label (base/(b^"_input")) map |> Lwt.return
+    end
+    else Lwt.return map
+  ) BatMap.String.empty entries
+
+let read_temperatures file_map =
+  let open Lwt_io in
+  let open Lwt_unix in
+
+  let lab_fname_l = BatMap.String.fold (fun k v a -> (k, v)::a) file_map [] |> List.rev in
+  Lwt_list.fold_left_s (fun map (label, fname) ->
+    let%lwt value = with_file ~flags:[O_RDONLY] ~mode:Input fname read_line in
+    let value = (float_of_string value) /. 1000. in
+    BatMap.String.add label value map |> Lwt.return
+  ) BatMap.String.empty lab_fname_l
+
+(*
+  let open Lwt_io in
+  let open Lwt_unix in
+  let (/) x y = x ^ "/" ^ y in
+
+  let%lwt dir = opendir base in
+  let%lwt entries = Lwt_unix.readdir_n dir 100 in
+  let%lwt () = closedir dir in
+
+  Array.sort String.compare entries;
+  let entries = Array.to_list entries |> ListLabels.filter ~f:(fun el -> el.[0] <> '.') in
+
+  Lwt_list.fold_left_s (fun map fname ->
+    if (BatString.starts_with fname "temp") && (BatString.ends_with fname "_label")
+    then begin
+      let b = BatString.split_on_string ~by:"_" fname |> List.hd in
+      let%lwt label = with_file ~flags:[O_RDONLY] ~mode:Input (base/fname) read_line in
+      let%lwt value = with_file ~flags:[O_RDONLY] ~mode:Input (base/(b^"_input")) read_line in
+      let value = (float_of_string value) /. 1000. in
+      BatMap.String.add label value map |> Lwt.return
+    end
+    else Lwt.return map
+  ) BatMap.String.empty entries
+*)
