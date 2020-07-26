@@ -173,11 +173,10 @@ let handle_win_event conf conn (event_info : I3ipc.Event.window_event_info) =
 
   let%lwt tree = get_tree conn in
   match event_info.Event.change with
-  | Event.New | Close | Title | Move -> begin
+  | Event.New | Close | Title | Move | FullscreenMode -> begin
     let ws_nodes = get_workspaces_nodes tree in
-    Lwt_list.iter_p (rename_workspace conf conn) ws_nodes
-  end
-  | Event.FullscreenMode -> begin
+    let%lwt () = Lwt_list.iter_p (rename_workspace conf conn) ws_nodes in
+
     let open Reply in
     let windows_nodes = get_windows_nodes tree in
     let windows_in_fullscreen =
