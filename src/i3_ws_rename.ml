@@ -50,6 +50,14 @@ let get_workspaces_nodes root =
     then n::acc else acc
   ) [] root |> List.rev
 
+let get_windows_nodes root =
+  traverse_deep_first (fun acc _depth n _parent ->
+    let open I3ipc in
+    let open Reply in
+    if n.nodetype = Con || n.nodetype = Floating_con
+    then n::acc else acc
+  ) [] root |> List.rev
+
 let string_of_node conf (node : I3ipc.Reply.node) =
   let open I3ipc in
   let open Reply in
@@ -124,14 +132,61 @@ let rename_workspace conf conn ws =
     Lwt.return ()
   end else Lwt.return ()
 
+let manage_fullscreen n =
+  if n = 0
+  then begin
+    match%lwt find_picom_pid () with
+    | Some _pid -> Lwt.return_unit
+    | None -> begin
+      let%lwt status = Lwt_process.exec ("picom", [|"picom"; "-b"; "-f"; "-D"; "3"; "-C"; "-G"|]) in
+      (match status with
+      | Unix.WEXITED 0 -> Logs.info (fun m -> m "picom successfully started")
+      | _ -> Logs.err (fun m -> m "Error while starting picom"));
+      let%lwt status = Lwt_process.exec ("xset", [|"xset"; "s"; "300"; "300";|]) in
+      (match status with
+      | Unix.WEXITED 0 -> Logs.info (fun m -> m "xset screen saver set to 5 minutes")
+      | _ -> Logs.err (fun m -> m "Error while setting screen saver"));
+      let%lwt status = Lwt_process.exec ("xset", [|"xset"; "dpms"; "600"; "600"; "600"|]) in
+      (match status with
+      | Unix.WEXITED 0 -> Logs.info (fun m -> m "xset screen OFF in 10 minutes")
+      | _ -> Logs.err (fun m -> m "Error while setting DPMS"));
+      Lwt.return_unit
+    end
+  end
+  else begin
+    match%lwt find_picom_pid () with
+    | Some pid -> begin
+      Logs.info (fun m -> m "Some fullscreen windows: killing picom");
+      Unix.kill pid 15;
+
+      let%lwt status = Lwt_process.exec ("xset", [|"xset"; "s"; "off"; "-dpms"|]) in
+      (match status with
+      | Unix.WEXITED 0 -> Logs.info (fun m -> m "Screen saver and DPMS disabled")
+      | _ -> Logs.err (fun m -> m "Error while turning blank screen off"));
+      Lwt.return_unit
+    end
+    | None -> Lwt.return_unit
+  end
+
 let handle_win_event conf conn (event_info : I3ipc.Event.window_event_info) =
   let open I3ipc in
 
+  let%lwt tree = get_tree conn in
   match event_info.Event.change with
   | Event.New | Close | Title | Move -> begin
-    let%lwt tree = get_tree conn in
     let ws_nodes = get_workspaces_nodes tree in
     Lwt_list.iter_p (rename_workspace conf conn) ws_nodes
+  end
+  | Event.FullscreenMode -> begin
+    let open Reply in
+    let windows_nodes = get_windows_nodes tree in
+    let windows_in_fullscreen =
+      ListLabels.fold_left windows_nodes ~init:0 ~f:(fun w_in_full w ->
+        if w.fullscreen_mode <> No_fullscreen
+        then (w_in_full + 1)
+        else w_in_full
+      ) in
+    manage_fullscreen windows_in_fullscreen
   end
   | _ -> Lwt.return ()
 

@@ -238,3 +238,28 @@ let read_temperatures file_map =
     let value = (float_of_string value) /. 1000. in
     BatMap.String.add label value map |> Lwt.return
   ) BatMap.String.empty lab_fname_l
+
+let get_user_process_list () =
+  let open Lwt_process in
+  let%lwt ps_out = pread ("ps", [|"/usr/bin/ps"; "x"; "-o"; "pid,cmd"|]) in
+  let lines = String.split_on_char '\n' ps_out
+    |> ListLabels.map ~f:String.trim
+    |> ListLabels.filter ~f:(fun l -> if l = "" then false else true)
+    |> List.tl in
+  let processes =
+    ListLabels.map lines ~f:(fun l ->
+      let tokens = String.split_on_char ' ' l in
+      let pid = List.hd tokens |> int_of_string in
+      let cmd = String.concat " " (List.tl tokens) in
+      pid, cmd
+    ) in
+
+  Lwt.return processes
+
+let find_picom_pid () =
+  let%lwt processes = get_user_process_list () in
+  ListLabels.find_map processes ~f:(fun (pid, cmd) ->
+    match%pcre cmd with
+    | {|^picom|} -> Some pid
+    | _ -> None
+  ) |> Lwt.return

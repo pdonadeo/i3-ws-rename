@@ -30,6 +30,7 @@ depends: [
     "lwt_glib"
     "ctypes"
     "ctypes-foreign"
+    "ppx_regexp"
     "dune" { build }
     "merlin" { build }
     "ocp-indent" { build }
