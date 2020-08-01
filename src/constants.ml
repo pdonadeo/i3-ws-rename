@@ -9,6 +9,8 @@ let microchip = ""
 let temperature_high = ""
 let temperature_hot = ""
 let thermometer_half = ""
+let usb_drive = ""
+let compact_disc = ""
 
 (* Common aliases *)
 let iof = int_of_float

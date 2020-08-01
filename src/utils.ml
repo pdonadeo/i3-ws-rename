@@ -263,3 +263,33 @@ let find_picom_pid () =
     | {|^picom|} -> Some pid
     | _ -> None
   ) |> Lwt.return
+
+let read_hdd_temp () =
+  let open Unix in
+  let open Lwt_unix in
+
+  let s = socket Unix.PF_INET Unix.SOCK_STREAM 0 in
+  let buf = Bytes.make 256 '\000' in
+
+  let rec loop acc =
+    let%lwt received = recv s buf 0 256 [] in
+    if received = 0
+    then Lwt.return (String.concat "" (List.rev acc))
+    else begin
+      let data = Bytes.sub buf 0 received in
+      let data_s = Bytes.to_string data in
+      loop (data_s::acc)
+    end in
+
+  try%lwt
+    let%lwt () = connect s (ADDR_INET ((inet_addr_of_string "127.0.0.1"), 7634)) in
+
+    let%lwt data = loop [] in
+    let temp = List.nth (String.split_on_char '|' data) 3 |> float_of_string in
+    let%lwt () = close s in
+    Lwt.return (Ok temp)
+  with
+  | exn -> begin
+    let%lwt () = close s in
+    Lwt.return (Error (Printexc.to_string exn))
+  end

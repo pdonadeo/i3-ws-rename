@@ -23,6 +23,7 @@ let modules : [ `r | `w] Lwt_module.modulo list = [
   new Cpu.modulo "0" pipe color_good color_degraded color_bad false;
   new Memory.modulo "0" pipe color_good color_degraded color_bad true;
   new K10_temp.modulo "0" pipe color_good color_degraded color_bad false;
+  new SSD_temp.modulo "0" pipe color_good color_degraded color_bad false;
   new NVME_temp.modulo "0" pipe color_good color_degraded color_bad true;
   new Case_fan_leds.modulo "0" pipe color_degraded color_good color_bad true;
   new Clock.modulo "0" pipe color_degraded true;
