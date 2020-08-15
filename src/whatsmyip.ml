@@ -1,31 +1,41 @@
 open Constants
 
 
-let delay = 5.0
+let delay = 10.0
+let curl_timeout = 2.0
+
+let ip_regexp = Str.regexp "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$"
 
 type status =
   | Unknown_state
   | Internet_is_up of string
-  | Internet_is_down of Curl.curlCode
+  | Internet_is_down of string
 
 let get_public_ip ip_url =
-  let ip = ref "" in
-  let write s = ip := s; String.length s in
+  let open Lwt_process in
 
-  let open Curl in
-  global_init CURLINIT_GLOBALSSL;
-  let curl = init () in
-  setopt curl (CURLOPT_URL ip_url);
-  set_writefunction curl write;
+  let pr = open_process_in ~timeout:curl_timeout ~stderr:`Dev_null ("curl", [| "/usr/bin/curl"; ip_url |]) in
+  let ic = pr#stdout in
+  let%lwt output =
+    try%lwt begin
+      let%lwt str = Lwt_io.read ic in
+      let str = String.trim str in
+      if Str.string_match ip_regexp str 0
+      then Lwt.return (`Correct_ip str)
+      else Lwt.return (`Error_service_returned_trash)
+    end
+    with Lwt_io.Channel_closed _ -> Lwt.return `Error_channel_closed in
 
-  let%lwt res = Curl_lwt.perform curl in
-
-  cleanup curl;
-  global_cleanup ();
-
-  match res with
-  | CURLE_OK -> Lwt.return (Ok (String.trim !ip))
-  | e -> Lwt.return (Error e)
+  let%lwt status = pr#close in
+  match output with
+  | `Correct_ip output -> Lwt.return (`Correct_ip output)
+  | `Error_service_returned_trash -> Lwt.return `Error_service_returned_trash
+  | `Error_channel_closed -> begin
+    match status with
+    | Unix.WEXITED st -> Lwt.return (`Error_process_exited_status st)
+    | Unix.WSIGNALED s
+    | Unix.WSTOPPED s -> Lwt.return (`Error_process_signaled s)
+  end
 
 class ['a] modulo instance_name status_pipe color_good color_bad sep : ['a] Lwt_module.modulo =
   object (self)
@@ -41,13 +51,18 @@ class ['a] modulo instance_name status_pipe color_good color_bad sep : ['a] Lwt_
       let%lwt res = get_public_ip "https://ifconfig.co/ip" in
 
       let state_changed = match internet_state, res with
-      | Unknown_state, Ok ip -> internet_state <- Internet_is_up ip; true
-      | Internet_is_up ip, Ok ip' when ip <> ip' -> internet_state <- Internet_is_up ip'; true
-      | Internet_is_down _, Ok ip -> internet_state <- Internet_is_up ip; true
-      | Unknown_state, Error e -> internet_state <- Internet_is_down e; true
-      | Internet_is_up _, Error e -> internet_state <- Internet_is_down e; true
-      | Internet_is_down e, Error e' when e <> e' -> internet_state <- Internet_is_down e'; true
-      | _ -> false in
+      | _, `Error_process_exited_status st -> internet_state <- Internet_is_down (spf "curl exited with %d" st); true
+      | _, `Error_process_signaled _sig -> internet_state <- Internet_is_down (spf "curl signaled with %d" _sig); true
+      | Unknown_state, `Error_service_returned_trash -> internet_state <- Unknown_state; false
+      | Internet_is_down _, `Error_service_returned_trash -> internet_state <- Unknown_state; true
+
+      | Internet_is_up ip, `Correct_ip ip' when ip <> ip' -> internet_state <- Internet_is_up ip'; true
+
+      | Internet_is_up _, `Correct_ip _
+      | Internet_is_up _, `Error_service_returned_trash -> false
+
+      | Unknown_state, `Correct_ip ip
+      | Internet_is_down _, `Correct_ip ip -> internet_state <- Internet_is_up ip; true in
 
       let%lwt _unused = if state_changed
       then Lwt_pipe.write status_pipe (`Status_change (name, instance_name))
@@ -76,7 +91,7 @@ class ['a] modulo instance_name status_pipe color_good color_bad sep : ['a] Lwt_
         match internet_state, show_state with
         | Unknown_state, true -> icon
         | Internet_is_up ip, true ->  spf " %s" ip
-        | Internet_is_down e, true -> (Curl.strerror e)
+        | Internet_is_down e, true -> e
         | Unknown_state, false -> icon
         | Internet_is_up _, false ->  icon
         | Internet_is_down _, false ->  icon in

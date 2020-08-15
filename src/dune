@@ -44,8 +44,6 @@
              ppx_regexp
              fmt
              lwt-pipe
-             curl
-             curl.lwt
              glib
              pulse
              obus
