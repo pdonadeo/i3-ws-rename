@@ -51,7 +51,8 @@
              batteries
              uutf
              str
-             clnp))
+             clnp
+             cohttp-lwt-unix))
 
 (rule
   (alias compress)

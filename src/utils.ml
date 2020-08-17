@@ -293,3 +293,16 @@ let read_hdd_temp () =
     let%lwt () = close s in
     Lwt.return (Error (Printexc.to_string exn))
   end
+
+let get_or_timeout ?(timeout=1.0) uri =
+  let open Lwt.Infix in
+  let uri = Uri.of_string uri in
+  let timeout =
+    Lwt_unix.sleep timeout >>= fun () ->
+    Lwt.return `Timeout in
+  let get =
+    try%lwt (
+      Cohttp_lwt_unix.Client.get uri >>= fun response ->
+      Lwt.return (`Response response)
+    ) with exn -> Lwt.return (`Exception exn) in
+  Lwt.pick [ timeout; get ]

@@ -1,8 +1,9 @@
 open Constants
+open Utils
 
 
 let delay = 10.0
-let curl_timeout = 2.0
+let request_timeout = (delay /. 2.0) -. 1.0
 
 let ip_regexp = Str.regexp "^[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+$"
 
@@ -12,30 +13,21 @@ type status =
   | Internet_is_down of string
 
 let get_public_ip ip_url =
-  let open Lwt_process in
-
-  let pr = open_process_in ~timeout:curl_timeout ~stderr:`Dev_null ("curl", [| "/usr/bin/curl"; ip_url |]) in
-  let ic = pr#stdout in
-  let%lwt output =
-    try%lwt begin
-      let%lwt str = Lwt_io.read ic in
-      let str = String.trim str in
-      if Str.string_match ip_regexp str 0
-      then Lwt.return (`Correct_ip str)
-      else Lwt.return (`Error_service_returned_trash)
+  let%lwt result = get_or_timeout ~timeout:request_timeout ip_url in
+  match result with
+  | `Response (resp, body) -> begin
+    match resp.status with
+    | `OK -> begin
+      let%lwt body_text = Cohttp_lwt.Body.to_string body in
+      let body_text = String.trim body_text in
+      if Str.string_match ip_regexp body_text 0
+      then Lwt.return (`Ip_address body_text)
+      else Lwt.return `Not_an_ip_address
     end
-    with Lwt_io.Channel_closed _ -> Lwt.return `Error_channel_closed in
-
-  let%lwt status = pr#close in
-  match output with
-  | `Correct_ip output -> Lwt.return (`Correct_ip output)
-  | `Error_service_returned_trash -> Lwt.return `Error_service_returned_trash
-  | `Error_channel_closed -> begin
-    match status with
-    | Unix.WEXITED st -> Lwt.return (`Error_process_exited_status st)
-    | Unix.WSIGNALED s
-    | Unix.WSTOPPED s -> Lwt.return (`Error_process_signaled s)
+    | _ -> Lwt.return `Http_error
   end
+  | `Timeout -> Lwt.return `Timeout
+  | `Exception exn -> Lwt.return (`Exception exn)
 
 class ['a] modulo instance_name status_pipe color_good color_bad sep : ['a] Lwt_module.modulo =
   object (self)
@@ -51,18 +43,43 @@ class ['a] modulo instance_name status_pipe color_good color_bad sep : ['a] Lwt_
       let%lwt res = get_public_ip "https://ifconfig.co/ip" in
 
       let state_changed = match internet_state, res with
-      | _, `Error_process_exited_status st -> internet_state <- Internet_is_down (spf "curl exited with %d" st); true
-      | _, `Error_process_signaled _sig -> internet_state <- Internet_is_down (spf "curl signaled with %d" _sig); true
-      | Unknown_state, `Error_service_returned_trash -> internet_state <- Unknown_state; false
-      | Internet_is_down _, `Error_service_returned_trash -> internet_state <- Unknown_state; true
+      | Unknown_state       , `Ip_address ip -> internet_state <- Internet_is_up ip; true
+      | Internet_is_up ip   , `Ip_address ip' when ip <> ip' -> begin
+        Logs.info (fun m -> m "(%s,%s) IP address chenged: %s => %s" name instance_name ip ip');
+        internet_state <- Internet_is_up ip';
+        true
+      end
+      | Internet_is_down _  , `Ip_address ip -> begin
+        Logs.info (fun m -> m "(%s,%s) Internet is back. IP address is %s" name instance_name ip);
+        internet_state <- Internet_is_up ip;
+        true
+      end
 
-      | Internet_is_up ip, `Correct_ip ip' when ip <> ip' -> internet_state <- Internet_is_up ip'; true
+      | Internet_is_down _  , `Not_an_ip_address -> internet_state <- Internet_is_up "N/A"; true
 
-      | Internet_is_up _, `Correct_ip _
-      | Internet_is_up _, `Error_service_returned_trash -> false
+      | Internet_is_down _  , `Http_error -> internet_state <- Internet_is_up "N/A"; true
 
-      | Unknown_state, `Correct_ip ip
-      | Internet_is_down _, `Correct_ip ip -> internet_state <- Internet_is_up ip; true in
+      | Internet_is_up _    , `Timeout -> begin
+        Logs.info (fun m -> m "(%s,%s) Internet is down :-/" name instance_name);
+        internet_state <- Internet_is_down "Timeout";
+        true
+      end
+
+      | _                   , `Exception exn -> begin
+        Logs.err (fun m -> m "(%s,%s) Exception raised while checking Internet connection" name instance_name);
+        Logs.err (fun m -> m "(%s,%s)     %s" name instance_name (Printexc.to_string exn));
+        Logs.info (fun m -> m "(%s,%s) Internet is down :-/" name instance_name);
+        internet_state <- Internet_is_down "Exception";
+        true
+      end
+
+      | Internet_is_down _  , `Timeout
+      | Internet_is_up _    , `Http_error
+      | Internet_is_up _    , `Ip_address _
+      | Internet_is_up _    , `Not_an_ip_address
+      | Unknown_state       , `Http_error
+      | Unknown_state       , `Not_an_ip_address
+      | Unknown_state       , `Timeout -> false in
 
       let%lwt _unused = if state_changed
       then Lwt_pipe.write status_pipe (`Status_change (name, instance_name))
