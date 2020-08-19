@@ -40,7 +40,7 @@ class ['a] modulo instance_name status_pipe color_good color_bad sep : ['a] Lwt_
     val mutable show_state = false
 
     method! private loop () =
-      let%lwt res = get_public_ip "https://ifconfig.co/ip" in
+      let%lwt res = get_public_ip "https://dns.4sigma.it/ip/" in
 
       let state_changed = match internet_state, res with
       | Unknown_state       , `Ip_address ip -> internet_state <- Internet_is_up ip; true
