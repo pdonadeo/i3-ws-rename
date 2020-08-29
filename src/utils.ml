@@ -96,8 +96,7 @@ let file_exists_and_is_readable f =
   then file_readable f
   else false
 
-let get_default_conf_fname () =
-  let fname = "app-icons.json" in
+let get_default_conf_fname fname =
   let getenv s = try (Some (Unix.getenv s)) with Not_found -> None in
 
   let skip_xdg_config_home () =
@@ -120,6 +119,64 @@ let get_default_conf_fname () =
     else skip_xdg_config_home ()
   end
   | None -> skip_xdg_config_home ()
+
+module StringTuple2Map_Json = struct
+  type el = {
+    key : string * string;
+    data : string
+  } [@@deriving yojson, show]
+
+  type t = el list [@@deriving yojson, show]
+
+  let map_to_json (m : string StringTuple2Map.t) =
+    let list = StringTuple2Map.fold (fun key data acc -> { key; data }::acc) m [] in
+    to_yojson list
+
+  let json_to_map (j : Yojson.Safe.t) : string StringTuple2Map.t =
+    let list_or_error = of_yojson j in
+    match list_or_error with
+    | Ok list -> begin
+      ListLabels.fold_left list ~init:StringTuple2Map.empty ~f:(fun acc el ->
+        StringTuple2Map.add el.key el.data acc
+      )
+    end
+    | Error _ -> begin
+      Logs.err (fun m -> m "Error parsing message serialized state");
+      failwith "Error parsing message serialized state"
+    end
+
+  let map_from_fname fname =
+    try%lwt
+      Lwt_io.with_file fname ~mode:Lwt_io.input (fun f ->
+        let%lwt state_str = Lwt_io.read f in
+        Yojson.Safe.from_string state_str |> json_to_map |> Result.ok |> Lwt.return
+      )
+    with
+    | exn -> begin
+      Logs.err (fun m -> m "Error loading state");
+      let open Printexc in
+      let exn_str = to_string exn in
+      let backtrace = get_backtrace () in
+      Logs.info (fun m -> m "Exception while loading state\n\n%s\n%s" exn_str backtrace);
+      Result.error () |> Lwt.return
+    end
+
+    let map_to_file state_fname state =
+      try%lwt
+        Lwt_io.with_file state_fname ~mode:Lwt_io.output (fun f ->
+          let state_str = to_yojson state |> Yojson.Safe.pretty_to_string in
+          Lwt_io.write f state_str
+        )
+      with
+      | exn -> begin
+        Logs.err (fun m -> m "Error saving state");
+        let open Printexc in
+        let exn_str = to_string exn in
+        let backtrace = get_backtrace () in
+        Logs.info (fun m -> m "Exception while saving state\n\n%s\n%s" exn_str backtrace);
+        Lwt.return_unit
+      end
+end
 
 let get_meminfo ?(path="/proc/meminfo") () =
   let open Lwt_io in

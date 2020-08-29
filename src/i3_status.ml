@@ -64,9 +64,17 @@ let rec read_clicks_loop (running_instances : [ `r | `w ] Lwt_module.modulo Stri
   end
   | None -> read_clicks_loop running_instances ()
 
-
-let entry_point shutdown () =
+let entry_point state_fname shutdown () =
+  let%lwt state = StringTuple2Map_Json.map_from_fname state_fname in
   let%lwt running_instances = Lwt_list.fold_left_s (fun map (modulo : [ `r | `w] Lwt_module.modulo) ->
+    let%lwt () =
+      match state with
+      | Ok state -> begin
+        match StringTuple2Map.find_opt (modulo#name, modulo#instance) state with
+        | Some mod_state -> modulo#load_state mod_state
+        | None -> Lwt.return_unit
+      end
+      | Error _ -> Lwt.return_unit in
     let%lwt () = modulo#run () in
     Lwt.return (StringTuple2Map.add (modulo#name, modulo#instance) modulo map)
   ) StringTuple2Map.empty modules in
@@ -81,9 +89,16 @@ let entry_point shutdown () =
   let rec loop () =
     if not (Lwt.is_sleeping shutdown) then begin
       let running_instances = StringTuple2Map.fold (fun _ m acc -> m::acc) running_instances [] in
-      let%lwt () = Lwt_list.iter_s (fun modulo ->
-        modulo#stop ()
-      ) running_instances in
+      let%lwt state = Lwt_list.fold_left_s (fun serialized modulo ->
+        let%lwt state = modulo#dump_state () in
+        let serialized = {
+          StringTuple2Map_Json.key = (modulo#name, modulo#instance);
+          StringTuple2Map_Json.data = state;
+        }::serialized in
+        let%lwt () = modulo#stop () in
+        Lwt.return serialized
+      ) [] running_instances in
+      let%lwt () = StringTuple2Map_Json.map_to_file state_fname state in
       Lwt.wakeup signal_completed ();
       Lwt.return_unit
     end else begin

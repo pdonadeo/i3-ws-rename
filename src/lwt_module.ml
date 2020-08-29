@@ -16,6 +16,9 @@ class type virtual ['a] modulo =
     method pipe : (I3bar_protocol.Click_event.t, 'a) Lwt_pipe.t
     method stopped : unit Lwt.t
 
+    method dump_state : unit -> string Lwt.t
+    method load_state : string -> unit Lwt.t
+
     method run : unit -> unit Lwt.t
     method ready : unit -> unit Lwt.t
     method stop : unit -> unit Lwt.t
@@ -50,6 +53,12 @@ class virtual ['a] base_modulo instance status_pipe =
       | Some _ -> Logs.debug (fun m -> m "%s: received message" name)
       | None -> ());
       self#read_loop ()
+
+    method dump_state () =
+      Lwt.return ""
+
+    method load_state (_s : string) =
+      Lwt.return_unit
 
     method run () : unit Lwt.t =
       Lwt.async (self#loop);

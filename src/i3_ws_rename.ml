@@ -262,7 +262,7 @@ let rec gc_loop () =
 let _sig_handler_id = Lwt_unix.on_signal 15 (fun s -> Lwt.wakeup do_shutdown s)
 let _sig_handler_id = Lwt_unix.on_signal  2 (fun s -> Lwt.wakeup do_shutdown s)
 
-let main _unique verbose log_fname conf_fname =
+let main _unique verbose log_fname conf_fname state_fname =
   Logs.set_reporter (Reporter.lwt_file_reporter (Some log_fname));
   if verbose
   then Logs.set_level (Some Logs.Debug)
@@ -271,7 +271,7 @@ let main _unique verbose log_fname conf_fname =
   let%lwt conf = Conf.read_configuration conf_fname in
 
   Lwt.async gc_loop;
-  let status_completed = I3_status.entry_point shutdown in
+  let status_completed = I3_status.entry_point state_fname shutdown in
   let%lwt conn = connect_and_subscribe () in
   let%lwt _ = Lwt.all [protected_loop conf conn; status_completed ()] in
   Lwt.return_unit
@@ -295,10 +295,15 @@ let log_fname =
   let doc = "Position of the log file." in
   Arg.(value & opt string log_fname_def & info ["l"; "log"] ~docv:"LOG" ~doc)
 
-let conf_fname_def = get_default_conf_fname ()
+let conf_fname_def = get_default_conf_fname "app-icons.json"
 let conf_fname =
   let doc = "Specifies an alternate configuration file path." in
   Arg.(value & opt string conf_fname_def & info ["c"; "conf"] ~docv:"CONFIGURATION" ~doc)
+
+let state_fname_def = get_default_conf_fname "state.json"
+let state_fname =
+  let doc = "Specifies an alternate state file path." in
+  Arg.(value & opt string state_fname_def & info ["s"; "state"] ~docv:"STATE" ~doc)
 
 let info =
   let doc = "Dynamically update i3wm workspace names based on running applications in each and optionally define an icon to show instead." in
@@ -308,7 +313,7 @@ let info =
   in
   Term.info "%%NAME%%" ~version:"%%VERSION%%" ~doc ~exits:Term.default_exits ~man
 
-let main' u daemon verbose log_fname conf_fname =
+let main' u daemon verbose log_fname conf_fname state_fname =
   let cd = Unix.getcwd () in
   let log_fname =
     if Filename.is_relative log_fname
@@ -331,9 +336,9 @@ let main' u daemon verbose log_fname conf_fname =
 
   if daemon then daemonize ~cd ();
   Lwt_glib.install ();
-  Lwt_main.run (main u verbose log_fname conf_fname)
+  Lwt_main.run (main u verbose log_fname conf_fname state_fname)
 
-let main_t = Term.(const main' $ unique $ daemon $ verbose $ log_fname $ conf_fname)
+let main_t = Term.(const main' $ unique $ daemon $ verbose $ log_fname $ conf_fname $ state_fname)
 
 let () = Printexc.record_backtrace true
 
