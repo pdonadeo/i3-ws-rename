@@ -187,7 +187,7 @@ type status = {
   current_animation : int;
   show_animation_name : bool;
   show_started : float;
-}
+} [@@deriving yojson, show]
 
 let default_status = {
   current_animation = 0;
@@ -327,6 +327,16 @@ class ['a] modulo instance_name status_pipe color_off color_hw color_sw sep : ['
         Logs.info (fun m -> m "Exception during initialization of Corsair Lighting Node Pro\n\n%s\n%s" exn_str backtrace);
         Lwt.return `Init_problems
       end
+
+    method! dump_state () =
+      status_to_yojson state |> Yojson.Safe.to_string |> Lwt.return
+
+    method! load_state (s : string) =
+      try%lwt
+        match Yojson.Safe.from_string s |> status_of_yojson with
+        | Ok status ->  Lwt.return (state <- status)
+        | Error _ ->  Lwt.return_unit
+      with _ -> Lwt.return_unit
 
     method! run () : unit Lwt.t =
       let%lwt init_result = self#init_controller () in
