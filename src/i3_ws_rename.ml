@@ -342,4 +342,9 @@ let main_t = Term.(const main' $ unique $ daemon $ verbose $ log_fname $ conf_fn
 
 let () = Printexc.record_backtrace true
 
+let () = Gc.set { (Gc.get ()) with
+    Gc.allocation_policy = 2;
+    Gc.space_overhead = 85;
+  }
+
 let () = Term.exit @@ Term.eval (main_t, info)
