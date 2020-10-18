@@ -17,6 +17,18 @@ let sensor2_thresholds = [|
   76.85; (* MAX nvme/Sensor 2 *)
 |]
 
+let composite_thresholds = [|
+  34.85; (* MIN nvme/Composite *)
+  50.85; (* 25% nvme/Composite *)
+  51.85; (* 50% nvme/Composite *)
+  52.85; (* 75% nvme/Composite *)
+  54.85; (* 90% nvme/Composite *)
+  62.85; (* MAX nvme/Composite *)
+|]
+
+let used_sensor_name = "Composite"          (* or "Sensor 2" *)
+let used_thresholds = composite_thresholds  (* or sensor2_thresholds *)
+
 class ['a] modulo instance_name status_pipe color_good color_degraded color_bad sep : ['a] Lwt_module.modulo =
   object (self)
     constraint 'a = [ `r | `w]
@@ -33,25 +45,25 @@ class ['a] modulo instance_name status_pipe color_good color_degraded color_bad 
         let%lwt nvme_temps = read_temperatures hwmon_file_map_nvme in
 
         let nvme_last_data' =
-          match BatMap.String.find_opt "Sensor 2" nvme_temps with
+          match BatMap.String.find_opt used_sensor_name nvme_temps with
           | None -> nvme_last_data
           | Some v -> v::nvme_last_data |> first_n moving_average_length in
         nvme_last_data <- nvme_last_data';
 
         let nvme_last_data_str = "[" ^ (List.map string_of_float nvme_last_data |> String.concat ", ") ^ "]" in
-        Logs.debug (fun m -> m "(%s,%s) Sensor 2 = %s" name instance_name nvme_last_data_str);
+        Logs.debug (fun m -> m "(%s,%s) %s = %s" name instance_name used_sensor_name nvme_last_data_str);
 
         let%lwt () =
           if List.length nvme_last_data >= moving_average_length then begin
-            let sensor2_avg = avg nvme_last_data in
-            let sensor2' = get_range sensor2_thresholds sensor2_avg in
+            let sensor_avg = avg nvme_last_data in
+            let sensor' = get_range used_thresholds sensor_avg in
 
             let%lwt _ =
-              if not_same_range state sensor2'
+              if not_same_range state sensor'
               then Lwt_pipe.write status_pipe (`Status_change (name, instance_name))
               else Lwt.return_true in
 
-            state <- sensor2';
+            state <- sensor';
 
             Lwt.return_unit
           end else Lwt.return_unit in
@@ -69,14 +81,14 @@ class ['a] modulo instance_name status_pipe color_good color_degraded color_bad 
         | High _ -> color_degraded
         | Hot _ -> color_bad in
 
-      let sensor2_t = get_temp state in
+      let sensor_t = get_temp state in
 
       let full_text =
         match state with
         | Low _ -> ""
         | Normal _ -> spf "%s %s" thermometer_half hdd
         | High _ -> spf "%s %s" temperature_high hdd
-        | Hot _ -> spf "%s %s %0.2f°" temperature_hot hdd sensor2_t
+        | Hot _ -> spf "%s %s %0.2f°" temperature_hot hdd sensor_t
       in
 
       let short_text = full_text in
