@@ -58,41 +58,6 @@ class ['a] modulo instance_name status_pipe color_good color_degraded color_bad 
       let%lwt () = Lwt_unix.sleep delay in
       self#loop ()
 
-(*
-      match hwmon_file_map_nvme with
-      | `Ok hwmon_file_map_nvme -> begin
-        let%lwt nvme_temps = read_temperatures hwmon_file_map_nvme in
-
-        let nvme_last_data' =
-          match BatMap.String.find_opt "Sensor 2" nvme_temps with
-          | None -> nvme_last_data
-          | Some v -> v::nvme_last_data |> first_n moving_average_length in
-        nvme_last_data <- nvme_last_data';
-
-        let nvme_last_data_str = "[" ^ (List.map string_of_float nvme_last_data |> String.concat ", ") ^ "]" in
-        Logs.debug (fun m -> m "(%s,%s) Sensor 2 = %s" name instance_name nvme_last_data_str);
-
-        let%lwt () =
-          if List.length nvme_last_data >= moving_average_length then begin
-            let ssd_avg = avg nvme_last_data in
-            let ssd' = get_range ssd_thresholds ssd_avg in
-
-            let%lwt _ =
-              if not_same_range state ssd'
-              then Lwt_pipe.write status_pipe (`Status_change (name, instance_name))
-              else Lwt.return_true in
-
-            state <- ssd';
-
-            Lwt.return_unit
-          end else Lwt.return_unit in
-
-        let%lwt () = Lwt_unix.sleep delay in
-        self#loop ()
-      end
-      | `Device_not_found -> Logs.info (fun m -> m "(%s,%s) Device NVME not found, exiting loop" name instance_name) |> Lwt.return
-*)
-
     method! json () =
       let color =
         match state with
