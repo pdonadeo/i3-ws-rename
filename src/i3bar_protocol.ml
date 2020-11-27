@@ -113,6 +113,8 @@ module Click_event = struct
     y: int;
     relative_x: int;
     relative_y: int;
+    output_x: int;
+    output_y: int;
     width: int;
     height: int;
   } [@@deriving of_yojson, show]
