@@ -259,8 +259,7 @@ let rec gc_loop () =
   Logs.debug (fun m -> m "           VmRSS = %d" (BatMap.String.find "VmRSS" memstats));
   gc_loop ()
 
-let _sig_handler_id = Lwt_unix.on_signal 15 (fun s -> Lwt.wakeup do_shutdown s)
-let _sig_handler_id = Lwt_unix.on_signal  2 (fun s -> Lwt.wakeup do_shutdown s)
+let _ = Lwt_unix.on_signal Sys.sigterm (fun s -> Lwt.wakeup do_shutdown s)
 
 let main _unique verbose log_fname conf_fname state_fname =
   Logs.set_reporter (Reporter.lwt_file_reporter (Some log_fname));

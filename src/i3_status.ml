@@ -1,7 +1,8 @@
 open Utils
 
 
-let header_block = "{ \"version\": 1, \"stop_signal\": 20, \"cont_signal\": 18, \"click_events\": true }"
+let header_block = "{ \"version\": 1, \"stop_signal\": 10, \"cont_signal\": 12, \"click_events\": true }"
+(* stop_signal = SIGUSR1 and cont_signal = SIGUSR2 *)
 
 let pipe : (Lwt_module.message_to_status, [< `r | `w ]) Lwt_pipe.t = Lwt_pipe.create ~max_size:10 ()
 
