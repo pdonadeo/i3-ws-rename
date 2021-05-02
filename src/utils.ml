@@ -363,3 +363,14 @@ let get_or_timeout ?(timeout=1.0) uri =
       Lwt.return (`Response response)
     ) with exn -> Lwt.return (`Exception exn) in
   Lwt.pick [ timeout; get ]
+
+let string_of_signal s =
+  match s with
+  | -1 -> "SIGABRT" | -2 -> "SIGALRM" | -3 -> "SIGFPE" | -4 -> "SIGHUP"
+  | -5 -> "SIGILL" | -6 -> "SIGINT" | -7 -> "SIGKILL" | -8 -> "SIGPIPE"
+  | -9 -> "SIGQUIT" | -10 -> "SIGSEGV" | -11 -> "SIGTERM" | -12 -> "SIGUSR1"
+  | -13 -> "SIGUSR2" | -14 -> "SIGCHLD" | -15 -> "SIGCONT" | -16 -> "SIGSTOP"
+  | -17 -> "SIGTSTP" | -18 -> "SIGTTIN" | -19 -> "SIGTTOU" | -20 -> "SIGVTALRM"
+  | -21 -> "SIGPROF" | -22 -> "SIGBUS" | -23 -> "SIGPOLL" | -24 -> "SIGSYS"
+  | -25 -> "SIGTRAP" | -26 -> "SIGURG" | -27 -> "SIGXCPU" | -28 -> "SIGXFSZ"
+  | _ -> "UNKNOWN SIGNAL"

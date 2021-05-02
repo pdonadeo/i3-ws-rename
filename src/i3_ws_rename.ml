@@ -223,7 +223,7 @@ let rec loop conf conn =
   end
   | `Shutdown -> begin
     let%lwt signal = shutdown in
-    Logs.info (fun m -> m "Signal %d received, shutting down..." signal);
+    Logs.info (fun m -> m "Signal %s received, shutting down..." (string_of_signal signal));
     Lwt.return_unit
   end
 
@@ -273,6 +273,7 @@ let main _unique verbose log_fname conf_fname state_fname =
   let status_completed = I3_status.entry_point state_fname shutdown in
   let%lwt conn = connect_and_subscribe () in
   let%lwt _ = Lwt.all [protected_loop conf conn; status_completed ()] in
+  let%lwt () = Lwt_unix.sleep 1.0 in
   Lwt.return_unit
 
 open Cmdliner
