@@ -1,6 +1,6 @@
 open Constants
 
-let delay = 2.0
+let delay = 60.0
 
 let find_dir_command = (
   "/usr/bin/find",
@@ -36,11 +36,11 @@ let battery_status () =
 
   with _ -> Lwt.return `Dualsense_not_present
 
-class ['a] modulo instance_name status_pipe color_good color_degraded color_bad sep : ['a] Lwt_module.modulo =
+class ['a] modulo instance status_pipe color_good color_degraded color_bad separator : ['a] Lwt_module.modulo =
 object (self)
   constraint 'a = [ `r | `w]
 
-  inherit ['a] Lwt_module.base_modulo instance_name status_pipe
+  inherit ['a] Lwt_module.base_modulo instance status_pipe
 
   val! name = "dualsense_battery"
   val mutable state = `Dualsense_not_present
@@ -51,9 +51,9 @@ object (self)
     let%lwt result =
       if state <> state' then begin
         state <- state';
-        Lwt_pipe.write status_pipe (`Status_change (name, instance_name))
+        Lwt_pipe.write status_pipe (`Status_change (name, instance))
       end else Lwt.return true in
-    Logs.debug (fun m -> m "(%s,%s)" name instance_name);
+    Logs.debug (fun m -> m "(%s,%s)" name instance);
 
     let%lwt () = Lwt_unix.sleep delay in
     if result = true
@@ -73,6 +73,10 @@ object (self)
     | `Dualsense_not_present -> "", -1
     in
 
+    let present = match state with
+    | `Dualsense_not_present -> false
+    | _ -> true in
+
     let charging = match state with
     | `Battery_status (`Charging, _) -> spf " %s" battery_bolt
     | _ -> "" in
@@ -81,7 +85,7 @@ object (self)
       if level = -1
       then ""
       else spf " %d%%" level in
-    let full_text = spf "%s%s%s" gamepad_alt level charging in
+    let full_text = spf "%s%s%s" (if present then gamepad_alt else "") level charging in
     let short_text = full_text in
 
     let bl = {I3bar_protocol.Block.default with
@@ -89,8 +93,8 @@ object (self)
       short_text;
       color;
       name;
-      instance = instance_name;
-      separator = sep;
+      instance;
+      separator;
     } in
     Yojson.Safe.to_string (I3bar_protocol.Block.to_yojson bl) |> Lwt.return
 end

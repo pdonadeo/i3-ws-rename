@@ -14,6 +14,7 @@ let color_separator = "#C5C8C6"
 
 let modules : [ `r | `w] Lwt_module.modulo list = [
   new Spotify.modulo "0" pipe color_good color_degraded true;
+  new Dualsense_battery.modulo "0" pipe color_good color_degraded color_bad true;
   new Disk_usage.modulo "/" pipe color color_degraded color_bad true;
   new Disk_usage.modulo "/home" pipe color color_degraded color_bad true;
   new Whatsmyip.modulo "0" pipe color_good color_bad true;
@@ -22,7 +23,6 @@ let modules : [ `r | `w] Lwt_module.modulo list = [
   new Path_exists.modulo "Docker" pipe "/run/docker.pid" "" color_good true;
   new Load_avg.modulo "0" pipe color_good color_degraded color_bad false;
   new Cpu.modulo "0" pipe color_good color_degraded color_bad false;
-  new Dualsense_battery.modulo "0" pipe color_good color_degraded color_bad false;
   new Memory.modulo "0" pipe color_good color_degraded color_bad true;
   new K10_temp.modulo "0" pipe color_good color_degraded color_bad false;
   new SSD_temp.modulo "0" pipe color_good color_degraded color_bad false;
