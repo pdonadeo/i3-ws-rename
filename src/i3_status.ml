@@ -22,6 +22,7 @@ let modules : [ `r | `w] Lwt_module.modulo list = [
   new Path_exists.modulo "Docker" pipe "/run/docker.pid" "" color_good true;
   new Load_avg.modulo "0" pipe color_good color_degraded color_bad false;
   new Cpu.modulo "0" pipe color_good color_degraded color_bad false;
+  new Dualsense_battery.modulo "0" pipe color_good color_degraded color_bad false;
   new Memory.modulo "0" pipe color_good color_degraded color_bad true;
   new K10_temp.modulo "0" pipe color_good color_degraded color_bad false;
   new SSD_temp.modulo "0" pipe color_good color_degraded color_bad false;

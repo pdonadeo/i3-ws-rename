@@ -12,6 +12,15 @@ let thermometer_half = ""
 let usb_drive = ""
 let compact_disc = ""
 
+let battery_empty = ""
+let battery_quarter = ""
+let battery_half = ""
+let battery_three_quarters = ""
+let battery_full = ""
+let battery_bolt = ""
+
+let gamepad_alt = ""
+
 (* Common aliases *)
 let iof = int_of_float
 let foi = float_of_int
