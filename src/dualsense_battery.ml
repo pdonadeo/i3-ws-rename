@@ -44,6 +44,7 @@ object (self)
 
   val! name = "dualsense_battery"
   val mutable state = `Dualsense_not_present
+  val mutable show_level = false
 
   method! private loop () =
     let%lwt state' = battery_status () in
@@ -60,15 +61,25 @@ object (self)
     then self#loop ()
     else Lwt.return ()
 
+  method! private read_loop () =
+    let%lwt maybe_msg = Lwt_pipe.read pipe in
+    let%lwt _unused = match maybe_msg with
+    | Some _ -> begin
+      show_level <- (not show_level);
+      Lwt_pipe.write status_pipe (`Status_change (name, instance))
+    end
+    | None -> Lwt.return true in
+    self#read_loop ()
+
   method! json () =
     let color, level = match state with
-    | `Battery_status (`Full, _) -> color_good, -1
+    | `Battery_status (`Full, _) -> color_good, 100
     | `Battery_status (`Unknown, _) -> color_bad, -1
     | `Battery_status (_, level) when 0  <= level && level < 25 -> color_bad, level
-    | `Battery_status (_, level) when 25 <= level && level < 50 -> color_degraded, -1
-    | `Battery_status (_, level) when 50 <= level && level < 75 -> color_degraded, -1
-    | `Battery_status (_, level) when 75 <= level && level < 99 -> color_good, -1
-    | `Battery_status (_, level) when level = 100 -> color_good, -1
+    | `Battery_status (_, level) when 25 <= level && level < 50 -> color_degraded, level
+    | `Battery_status (_, level) when 50 <= level && level < 75 -> color_degraded, level
+    | `Battery_status (_, level) when 75 <= level && level < 99 -> color_good, level
+    | `Battery_status (_, level) when level = 100 -> color_good, level
     | `Battery_status (_, _) -> color_bad, -1  (* This should never happen... *)
     | `Dualsense_not_present -> "", -1
     in
@@ -82,10 +93,15 @@ object (self)
     | _ -> "" in
 
     let level =
-      if level = -1
-      then ""
-      else spf " %d%%" level in
-    let full_text = spf "%s%s%s" (if present then gamepad_alt else "") level charging in
+      if show_level = true
+      then spf " %d%%" level
+      else if color = color_bad
+        then spf " %d%%" level
+        else "" in
+    let full_text =
+      if present
+      then spf "%s%s%s" gamepad_alt level charging
+      else "" in
     let short_text = full_text in
 
     let bl = {I3bar_protocol.Block.default with
