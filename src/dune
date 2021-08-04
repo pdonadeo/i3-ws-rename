@@ -26,7 +26,8 @@
            spotify_interfaces
            spotify_client
            spotify
-           dualsense_battery)
+           dualsense_battery
+           otp)
   (foreign_stubs (language c) (names unix_ext_stubs))
   (preprocess (pps lwt
                    lwt.unix
@@ -53,7 +54,9 @@
              uutf
              str
              clnp
-             cohttp-lwt-unix))
+             base32
+             cohttp-lwt-unix
+             cryptokit))
 
 (rule
   (alias compress)

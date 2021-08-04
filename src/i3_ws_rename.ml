@@ -261,13 +261,15 @@ let rec gc_loop () =
 
 let _ = Lwt_unix.on_signal Sys.sigterm (fun s -> Lwt.wakeup do_shutdown s)
 
-let main _unique verbose log_fname conf_fname state_fname =
+let main _unique verbose log_fname conf_fname otp_conf_fname state_fname =
   Logs.set_reporter (Reporter.lwt_file_reporter (Some log_fname));
   if verbose
   then Logs.set_level (Some Logs.Debug)
   else Logs.set_level (Some Logs.Info);
 
-  let%lwt conf = Conf.read_configuration conf_fname in
+  let%lwt conf = Conf.read_icons_configuration conf_fname in
+  let%lwt otp_conf = Conf.read_otp_configuration otp_conf_fname in
+  Conf.otp_global_configuration := otp_conf;
 
   Lwt.async gc_loop;
   let status_completed = I3_status.entry_point state_fname shutdown in
@@ -300,6 +302,12 @@ let conf_fname =
   let doc = "Specifies an alternate configuration file path." in
   Arg.(value & opt string conf_fname_def & info ["c"; "conf"] ~docv:"CONFIGURATION" ~doc)
 
+let otp_conf_fname_def = get_default_conf_fname "otp.json"
+let otp_conf_fname =
+  let doc = "Specifies an alternate configuration file for the OTP secrets." in
+  Arg.(value & opt string otp_conf_fname_def & info ["o"; "otp"] ~docv:"OTP" ~doc)
+
+
 let state_fname_def = get_default_conf_fname "state.json"
 let state_fname =
   let doc = "Specifies an alternate state file path." in
@@ -313,7 +321,7 @@ let info =
   in
   Term.info "%%NAME%%" ~version:"%%VERSION%%" ~doc ~exits:Term.default_exits ~man
 
-let main' u daemon verbose log_fname conf_fname state_fname =
+let main' u daemon verbose log_fname conf_fname otp_conf_fname state_fname =
   let cd = Unix.getcwd () in
   let log_fname =
     if Filename.is_relative log_fname
@@ -332,13 +340,25 @@ let main' u daemon verbose log_fname conf_fname state_fname =
       end
     end in
 
+  let otp_conf_fname =
+    if otp_conf_fname = ""
+    then None
+    else begin
+      if file_exists_and_is_readable otp_conf_fname
+      then Some otp_conf_fname
+      else begin
+        Printf.eprintf "ERROR: file \"%s\" does not exist or not readable.\n%!" otp_conf_fname;
+        exit 1;
+      end
+    end in
+
   mkdir_p (Filename.dirname log_fname) 0o755;
 
   if daemon then daemonize ~cd ();
   Lwt_glib.install ();
-  Lwt_main.run (main u verbose log_fname conf_fname state_fname)
+  Lwt_main.run (main u verbose log_fname conf_fname otp_conf_fname state_fname)
 
-let main_t = Term.(const main' $ unique $ daemon $ verbose $ log_fname $ conf_fname $ state_fname)
+let main_t = Term.(const main' $ unique $ daemon $ verbose $ log_fname $ conf_fname $ otp_conf_fname $ state_fname)
 
 let () = Printexc.record_backtrace true
 

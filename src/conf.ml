@@ -1,13 +1,13 @@
 open Utils
 
 
-type conf_record = {
+type icon_conf_record = {
   fa_icon: string;
   window_class: string;
   window_instance: string option [@default None];
-} [@@deriving yojson]
+} [@@deriving yojson, show]
 
-type configuration = conf_record list [@@deriving yojson]
+type icons_configuration = icon_conf_record list [@@deriving yojson, show]
 
 let spf = Printf.sprintf
 
@@ -19,21 +19,9 @@ let record_lowercase r = {
   window_instance = opt_map r.window_instance ~f:String.lowercase_ascii
 }
 
-let read_configuration fname =
-  match fname with
-  | Some fname ->
-    Lwt_io.with_file fname ~mode:Lwt_io.input (fun f ->
-      let%lwt conf_str = Lwt_io.read f in
-      let conf_j = Yojson.Safe.from_string conf_str in
-      let conf_or_error = configuration_of_yojson conf_j in
-      match conf_or_error with
-      | Ok conf -> begin
-          Logs.debug (fun m -> m "Configuration successfully loaded from %s" fname);
-          Lwt.return (List.map record_lowercase conf)
-      end
-      | Error e -> failwith (spf "Parse error: %s" e) (* TODO *)
-    )
-  | None -> Lwt.return default_configuration
+let read_icons_configuration fname =
+  let%lwt orig_conf = Utils.read_json_configuration icons_configuration_of_yojson fname in
+  Lwt.return (orig_conf |> List.map record_lowercase)
 
 let hd_opt xs =
   match xs with
@@ -78,3 +66,16 @@ let search_class_instance conf class_ instance =
       let icon = r.fa_icon in
       Fa_icons.get_icon_string icon
     )
+
+type otp_record = {
+  name: string;
+  icon: string option [@default None];
+  secret: string;
+} [@@deriving yojson]
+
+type otp_configuration = otp_record list [@@deriving yojson]
+
+let read_otp_configuration fname =
+  Utils.read_json_configuration otp_configuration_of_yojson fname
+
+let otp_global_configuration : otp_configuration ref = ref []

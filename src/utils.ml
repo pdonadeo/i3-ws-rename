@@ -374,3 +374,19 @@ let string_of_signal s =
   | -21 -> "SIGPROF" | -22 -> "SIGBUS" | -23 -> "SIGPOLL" | -24 -> "SIGSYS"
   | -25 -> "SIGTRAP" | -26 -> "SIGURG" | -27 -> "SIGXCPU" | -28 -> "SIGXFSZ"
   | _ -> "UNKNOWN SIGNAL"
+
+let read_json_configuration decoder fname =
+  match fname with
+  | Some fname ->
+    Lwt_io.with_file fname ~mode:Lwt_io.input (fun f ->
+      let%lwt conf_str = Lwt_io.read f in
+      let conf_j = Yojson.Safe.from_string conf_str in
+      let conf_or_error = decoder conf_j in
+      match conf_or_error with
+      | Ok conf -> begin
+          Logs.debug (fun m -> m "Configuration successfully loaded from %s" fname);
+          Lwt.return conf
+      end
+      | Error e -> failwith (Printf.sprintf "Parse error: %s" e) (* TODO *)
+    )
+  | None -> Lwt.return []

@@ -18,12 +18,19 @@
 
 #directory "_build/default/src";;
 #directory "_build/default/src/.i3_ws_rename.eobjs/byte";;
+#directory "_build/default/src/base32";;
+#directory "_build/default/src/base32/.base32.objs/byte";;
+#directory "_build/default/src/clnp";;
+#directory "_build/default/src/clnp/.clnp.objs/byte";;
+
+#load "seq.cmo";;
+#load "radix_n.cmo";;
+#load "base32.cmo";;
 
 #load "fa_icons.cmo";;
 #require "ppx_regexp";;
 #require "cohttp-lwt-unix";;
 #load "utils.cmo";;
-open Utils;;
 
 #load "conf.cmo";;
 #load "i3bar_protocol.cmo";;
