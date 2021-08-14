@@ -56,7 +56,8 @@
              clnp
              base32
              cohttp-lwt-unix
-             cryptokit))
+             cryptokit
+             malloc))
 
 (rule
   (alias compress)

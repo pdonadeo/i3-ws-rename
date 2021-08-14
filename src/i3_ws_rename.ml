@@ -219,6 +219,7 @@ let rec loop conf conn =
       end
       | _ -> Lwt.return () in
     Gc.compact ();
+    Malloc.malloc_trim 0;
     loop conf conn
   end
   | `Shutdown -> begin
