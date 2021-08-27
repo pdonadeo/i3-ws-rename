@@ -260,6 +260,15 @@ let rec gc_loop () =
   Logs.debug (fun m -> m "           VmRSS = %d" (BatMap.String.find "VmRSS" memstats));
   gc_loop ()
 
+let rec clear_color_profile () =
+  let%lwt res = Lwt_process.exec ("/usr/bin/xprop", [|"xprop"; "-root"; "-remove"; "_ICC_PROFILE" |]) in
+  let () =
+    match res with
+    | Unix.WEXITED 0 -> Logs.debug (fun m -> m "Color profile cleared")
+    | _ -> Logs.err (fun m -> m "Error while clearing color profile") in
+  let%lwt () = Lwt_unix.sleep 3.0 in
+  clear_color_profile ()
+
 let _ = Lwt_unix.on_signal Sys.sigterm (fun s -> Lwt.wakeup do_shutdown s)
 
 let main _unique verbose log_fname conf_fname otp_conf_fname state_fname =
@@ -273,6 +282,7 @@ let main _unique verbose log_fname conf_fname otp_conf_fname state_fname =
   Conf.otp_global_configuration := otp_conf;
 
   Lwt.async gc_loop;
+  Lwt.async clear_color_profile;
   let status_completed = I3_status.entry_point state_fname shutdown in
   let%lwt conn = connect_and_subscribe () in
   let%lwt _ = Lwt.all [protected_loop conf conn; status_completed ()] in
