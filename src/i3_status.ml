@@ -18,6 +18,7 @@ let modules : [ `r | `w] Lwt_module.modulo list = [
   new Disk_usage.modulo "/" pipe color color_degraded color_bad true;
   new Disk_usage.modulo "/home" pipe color color_degraded color_bad true;
   new Whatsmyip.modulo "0" pipe color_good color_bad true;
+  new Game_mode.modulo "0" pipe color_good color_degraded true;
   new Otp.modulo "0" pipe color_good color_degraded color_bad true;
   new Vpn_status.modulo "0" pipe color_good true;
   new Path_exists.modulo "PostgreSQL" pipe "/run/postgresql/.s.PGSQL.5432.lock" "" color_good true;

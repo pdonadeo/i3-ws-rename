@@ -21,6 +21,12 @@ let battery_bolt = ""
 
 let gamepad_alt = ""
 
+let joystick = ""
+
+let check = ""
+
+let hourglass = ""
+
 (* Common aliases *)
 let iof = int_of_float
 let foi = float_of_int

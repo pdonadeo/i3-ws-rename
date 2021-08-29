@@ -27,7 +27,8 @@
            spotify_client
            spotify
            dualsense_battery
-           otp)
+           otp
+           game_mode)
   (foreign_stubs (language c) (names unix_ext_stubs))
   (preprocess (pps lwt
                    lwt.unix
