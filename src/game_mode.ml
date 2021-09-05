@@ -7,6 +7,7 @@ type status =
   | Game_mode_on
   | Game_mode_off
   | Game_mode_changing
+  | Bluetooth_power_cycle
 
 let turn_on_game_mode () =
   let%lwt _ = Lwt_process.exec ("/usr/bin/sudo", [|"sudo"; "servizi_steam.sh"; "stop" |]) in
@@ -36,6 +37,12 @@ let turn_off_game_mode () =
   let%lwt _ = Lwt_process.exec ("/usr/bin/sudo", [|"sudo"; "servizi_steam.sh"; "start" |]) in
   Lwt.return_unit
 
+let bluetooth_power_cycle () =
+  let%lwt _ = Lwt_process.exec ("/usr/bin/sudo", [|"sudo"; "systemctl"; "stop"; "bluetooth.service"|]) in
+  let%lwt () = Lwt_unix.sleep 3.0 in
+  let%lwt _ = Lwt_process.exec ("/usr/bin/sudo", [|"sudo"; "systemctl"; "start"; "bluetooth.service"|]) in
+  Lwt.return_unit
+
 class ['a] modulo instance status_pipe color color_degraded separator : ['a] Lwt_module.modulo =
   object (self)
     constraint 'a = [ `r | `w ]
@@ -48,7 +55,8 @@ class ['a] modulo instance status_pipe color color_degraded separator : ['a] Lwt
     method! private read_loop () =
       let%lwt maybe_msg = Lwt_pipe.read pipe in
       let%lwt _ = match maybe_msg with
-      | Some _ -> begin
+      | Some { button = 1; _ } -> begin
+        (* Left click *)
         match state with
         | Game_mode_off -> begin
           Logs.info (fun m -> m "Turning on GAME MODE");
@@ -66,9 +74,20 @@ class ['a] modulo instance status_pipe color color_degraded separator : ['a] Lwt
           state <- Game_mode_off;
           Lwt_pipe.write status_pipe (`Status_change (name, instance))
         end
-        | Game_mode_changing -> Lwt.return_true
+        | Game_mode_changing
+        | Bluetooth_power_cycle -> Lwt.return_true
       end
-      | None -> Lwt.return true in
+      | Some { button = 3; _ } -> begin
+        (* Right click *)
+        Logs.info (fun m -> m "Bluetooth power cycle START");
+        let old_state = state in
+        state <- Bluetooth_power_cycle;
+        let%lwt _ = Lwt_pipe.write status_pipe (`Status_change (name, instance)) in
+        let%lwt () = bluetooth_power_cycle () in
+        state <- old_state;
+        Lwt_pipe.write status_pipe (`Status_change (name, instance))
+      end
+      | _ -> Lwt.return true in
       self#read_loop ()
 
     method! json () =
@@ -76,7 +95,8 @@ class ['a] modulo instance status_pipe color color_degraded separator : ['a] Lwt
         match state with
         | Game_mode_off -> ""
         | Game_mode_on -> color
-        | Game_mode_changing -> color_degraded in
+        | Game_mode_changing
+        | Bluetooth_power_cycle -> color_degraded in
 
       let bl = {I3bar_protocol.Block.default with
         full_text = joystick;
