@@ -132,40 +132,49 @@ let rename_workspace conf conn ws =
     Lwt.return ()
   end else Lwt.return ()
 
-let manage_fullscreen n =
-  if n = 0
-  then begin
-    match%lwt find_picom_pid () with
-    | Some _pid -> Lwt.return_unit
-    | None -> begin
-      let%lwt status = Lwt_process.exec ("picom", [|"picom"; "-b"; "-f"; "-D"; "3"; "-C"; "-G"|]) in
-      (match status with
-      | Unix.WEXITED 0 -> Logs.info (fun m -> m "picom successfully started")
-      | _ -> Logs.err (fun m -> m "Error while starting picom"));
-      let%lwt status = Lwt_process.exec ("xset", [|"xset"; "s"; "300"; "300";|]) in
-      (match status with
-      | Unix.WEXITED 0 -> Logs.info (fun m -> m "xset screen saver set to 5 minutes")
-      | _ -> Logs.err (fun m -> m "Error while setting screen saver"));
-      let%lwt status = Lwt_process.exec ("xset", [|"xset"; "dpms"; "600"; "600"; "600"|]) in
-      (match status with
-      | Unix.WEXITED 0 -> Logs.info (fun m -> m "xset screen OFF in 10 minutes")
-      | _ -> Logs.err (fun m -> m "Error while setting DPMS"));
-      Lwt.return_unit
+let manage_fullscreen full_screen_win_number =
+  let%lwt game_mode_s = I3_status.game_mode_module#dump_state () in
+  let game_mode_state_or_error = Yojson.Safe.from_string game_mode_s |> Game_mode.status_of_yojson in
+  match game_mode_state_or_error with
+  | Result.Ok Game_mode.Game_mode_off -> begin
+    if full_screen_win_number = 0
+    then begin
+      match%lwt find_picom_pid () with
+      | Some _pid -> Lwt.return_unit
+      | None -> begin
+        let%lwt status = Lwt_process.exec ("picom", [|"picom"; "-b"; "-f"; "-D"; "3"; "-C"; "-G"|]) in
+        (match status with
+        | Unix.WEXITED 0 -> Logs.info (fun m -> m "picom successfully started")
+        | _ -> Logs.err (fun m -> m "Error while starting picom"));
+        let%lwt status = Lwt_process.exec ("xset", [|"xset"; "s"; "300"; "300";|]) in
+        (match status with
+        | Unix.WEXITED 0 -> Logs.info (fun m -> m "xset screen saver set to 5 minutes")
+        | _ -> Logs.err (fun m -> m "Error while setting screen saver"));
+        let%lwt status = Lwt_process.exec ("xset", [|"xset"; "dpms"; "600"; "600"; "600"|]) in
+        (match status with
+        | Unix.WEXITED 0 -> Logs.info (fun m -> m "xset screen OFF in 10 minutes")
+        | _ -> Logs.err (fun m -> m "Error while setting DPMS"));
+        Lwt.return_unit
+      end
+    end
+    else begin
+      match%lwt find_picom_pid () with
+      | Some pid -> begin
+        Logs.info (fun m -> m "Some fullscreen windows: killing picom");
+        Unix.kill pid 15;
+
+        let%lwt status = Lwt_process.exec ("xset", [|"xset"; "s"; "off"; "-dpms"|]) in
+        (match status with
+        | Unix.WEXITED 0 -> Logs.info (fun m -> m "Screen saver and DPMS disabled")
+        | _ -> Logs.err (fun m -> m "Error while turning blank screen off"));
+        Lwt.return_unit
+      end
+      | None -> Lwt.return_unit
     end
   end
-  else begin
-    match%lwt find_picom_pid () with
-    | Some pid -> begin
-      Logs.info (fun m -> m "Some fullscreen windows: killing picom");
-      Unix.kill pid 15;
-
-      let%lwt status = Lwt_process.exec ("xset", [|"xset"; "s"; "off"; "-dpms"|]) in
-      (match status with
-      | Unix.WEXITED 0 -> Logs.info (fun m -> m "Screen saver and DPMS disabled")
-      | _ -> Logs.err (fun m -> m "Error while turning blank screen off"));
-      Lwt.return_unit
-    end
-    | None -> Lwt.return_unit
+  | _ -> begin
+    Logs.info (fun m -> m "Ignoring full screen events because we are in Game Mode");
+    Lwt.return_unit
   end
 
 let handle_win_event conf conn (event_info : I3ipc.Event.window_event_info) =

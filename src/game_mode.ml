@@ -8,6 +8,7 @@ type status =
   | Game_mode_off
   | Game_mode_changing
   | Bluetooth_power_cycle
+  [@@deriving yojson, show]
 
 let turn_on_game_mode () =
   let%lwt _ = Lwt_process.exec ("/usr/bin/sudo", [|"sudo"; "servizi_steam.sh"; "stop" |]) in
@@ -89,6 +90,9 @@ class ['a] modulo instance status_pipe color color_degraded separator : ['a] Lwt
       end
       | _ -> Lwt.return true in
       self#read_loop ()
+
+    method! dump_state () =
+      status_to_yojson state |> Yojson.Safe.to_string |> Lwt.return
 
     method! json () =
       let color =

@@ -35,6 +35,8 @@
 #load "conf.cmo";;
 #load "i3bar_protocol.cmo";;
 #load "lwt_module.cmo";;
+#load "constants.cmo";;
+#load "game_mode.cmo";;
 
 #warnings "-22";;
 #warn_error "-22";;

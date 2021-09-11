@@ -12,13 +12,15 @@ let color_degraded = "#CC9246"
 let color_bad = "#9B51FF"
 let color_separator = "#C5C8C6"
 
+let game_mode_module = new Game_mode.modulo "0" pipe color_good color_degraded true
+
 let modules : [ `r | `w] Lwt_module.modulo list = [
   new Spotify.modulo "0" pipe color_good color_degraded true;
   new Dualsense_battery.modulo "0" pipe color_good color_degraded color_bad true;
   new Disk_usage.modulo "/" pipe color color_degraded color_bad true;
   new Disk_usage.modulo "/home" pipe color color_degraded color_bad true;
   new Whatsmyip.modulo "0" pipe color_good color_bad true;
-  new Game_mode.modulo "0" pipe color_good color_degraded true;
+  game_mode_module;
   new Otp.modulo "0" pipe color_good color_degraded color_bad true;
   new Vpn_status.modulo "0" pipe color_good true;
   new Path_exists.modulo "PostgreSQL" pipe "/run/postgresql/.s.PGSQL.5432.lock" "" color_good true;
