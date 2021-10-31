@@ -1,5 +1,7 @@
 type message_to_status = [
   | `Status_change of string * string
+  | `Stop_output
+  | `Continue_output
 ]
 
 class type virtual ['a] modulo =

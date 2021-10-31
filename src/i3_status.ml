@@ -1,8 +1,13 @@
 open Utils
 
 
-let header_block = "{ \"version\": 1, \"stop_signal\": 10, \"cont_signal\": 12, \"click_events\": true }"
-(* stop_signal = SIGUSR1 and cont_signal = SIGUSR2 *)
+(* In the past I used stop_signal = 10 (SIGUSR1) and cont_signal = 12 (SIGUSR2), like this:
+ *     let header_block = "{ \"version\": 1, \"stop_signal\": 10, \"cont_signal\": 12, \"click_events\": true }"
+ * I had problems because i3bar send signals to every child process, not only to the main process, randomly
+ * killing picom, xset and other processes.
+ * I decided to disable  this feature.
+ *)
+let header_block = "{ \"version\": 1, \"stop_signal\": 0, \"cont_signal\": 0, \"click_events\": true }"
 
 let pipe : (Lwt_module.message_to_status, [< `r | `w ]) Lwt_pipe.t = Lwt_pipe.create ~max_size:10 ()
 
@@ -70,6 +75,21 @@ let rec read_clicks_loop (running_instances : [ `r | `w ] Lwt_module.modulo Stri
   end
   | None -> read_clicks_loop running_instances ()
 
+let _ = Lwt_unix.on_signal Sys.sigusr1 (fun _ ->
+  Logs.debug (fun m -> m "SIGUSR1 received, sending Stop_output message to the status loop…");
+  Lwt.async (fun () ->
+    let%lwt _ = Lwt_pipe.write pipe `Stop_output in
+    Lwt.return_unit
+  )
+)
+let _ = Lwt_unix.on_signal Sys.sigusr2 (fun _ ->
+  Logs.debug (fun m -> m "SIGUSR2 received, sending Continue_output message to the status loop…");
+  Lwt.async (fun () ->
+    let%lwt _ = Lwt_pipe.write pipe `Continue_output in
+    Lwt.return_unit
+  )
+)
+
 let entry_point state_fname shutdown () =
   let%lwt state = StringTuple2Map_Json.map_from_fname state_fname in
   let%lwt running_instances = Lwt_list.fold_left_s (fun map (modulo : [ `r | `w] Lwt_module.modulo) ->
@@ -92,7 +112,8 @@ let entry_point state_fname shutdown () =
 
   let completed, signal_completed = Lwt.wait () in
 
-  let rec loop () =
+  let rec loop ?(enable_output=true) () =
+    (* Since I decided to disable signals from i3bar, enable_output is always true *)
     if not (Lwt.is_sleeping shutdown) then begin
       let running_instances = StringTuple2Map.fold (fun _ m acc -> m::acc) running_instances [] in
       let%lwt state = Lwt_list.fold_left_s (fun serialized modulo ->
@@ -109,17 +130,27 @@ let entry_point state_fname shutdown () =
       Lwt.return_unit
     end else begin
       match%lwt Lwt_pipe.read_with_timeout pipe ~timeout:(Some 1.0) with
-      | Timeout -> loop ()
+      | Timeout -> loop ~enable_output ()
       | Data_available t -> begin
         match t with
         | `Status_change (name, instance_name) -> begin
-          Logs.debug (fun m -> m "(%s,%s) state update" name instance_name);
-          let%lwt () = Lwt_io.printf "[" in
-          let%lwt blocks = Lwt_list.map_p (fun mod_ -> mod_#json ()) modules in
-          let%lwt () = Lwt_io.printf "%s" (BatString.concat "," blocks) in
-          let%lwt () = Lwt_io.printf "]," in
-          let%lwt () = Lwt_io.(flush stdout) in
-          loop ()
+          if enable_output then begin
+            Logs.debug (fun m -> m "(%s,%s) state update" name instance_name);
+            let%lwt () = Lwt_io.printf "[" in
+            let%lwt blocks = Lwt_list.map_p (fun mod_ -> mod_#json ()) modules in
+            let%lwt () = Lwt_io.printf "%s" (BatString.concat "," blocks) in
+            let%lwt () = Lwt_io.printf "]," in
+            let%lwt () = Lwt_io.(flush stdout) in
+            loop ~enable_output ()
+          end else loop ~enable_output ()
+        end
+        | `Stop_output -> begin
+          Logs.info (fun m -> m "I'm stopping to send JSON output to i3bar");
+          loop ~enable_output:false ()
+        end
+        | `Continue_output -> begin
+          Logs.info (fun m -> m "I'm going to send JSON output to i3bar again");
+          loop ~enable_output:true ()
         end
       end
       | Pipe_closed

@@ -1,6 +1,6 @@
 opam-version: "2.0"
 name: "i3-ws-rename"
-version: "4"
+version: "5"
 synopsis: "Renames i3 workspaces using Font Awesome and handle status"
 description: "
 TODO
@@ -30,10 +30,17 @@ depends: [
     "ctypes"
     "ctypes-foreign"
     "ppx_regexp"
+    "cryptokit"
+    "cohttp-lwt-unix"
+    "lwt-pipe"
+    "color"
+    "usb"
+    "lwt_ssl"
     "dune" { build }
     "merlin" { build }
     "ocp-indent" { build }
     "utop" { build }
+    "ocaml-lsp-server" { build }
 ]
 homepage: "https://github.com/pdonadeo/i3-ws-rename"
 bug-reports: "https://github.com/pdonadeo/i3-ws-rename/issues"
