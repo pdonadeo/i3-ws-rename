@@ -313,15 +313,19 @@ let get_user_process_list () =
 
   Lwt.return processes
 
-let picom_regex = Str.regexp "^picom"
-
-let find_picom_pid () =
+let find_process_pid regex =
   let%lwt processes = get_user_process_list () in
   ListLabels.find_map processes ~f:(fun (pid, cmd) ->
-    if Str.string_match picom_regex cmd 0
+    if Str.string_match regex cmd 0
     then Some pid
     else None
   ) |> Lwt.return
+
+let picom_regex = Str.regexp "^picom"
+let find_picom_pid () = find_process_pid picom_regex
+
+let xwinwrap_regex = Str.regexp "^xwinwrap"
+let find_xwinwrap_pid () = find_process_pid xwinwrap_regex
 
 let read_hdd_temp () =
   let open Unix in

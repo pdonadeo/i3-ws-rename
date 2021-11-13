@@ -1,4 +1,5 @@
 open Constants
+open Utils
 
 
 let spf = Printf.sprintf
@@ -15,6 +16,12 @@ let turn_on_game_mode () =
   let%lwt () = match%lwt Utils.find_picom_pid () with
     | Some pid -> begin
       Logs.info (fun m -> m "Game mode: killing picom");
+      Unix.kill pid 15 |> Lwt.return
+    end
+    | None -> Lwt.return_unit in
+  let%lwt () = match%lwt Utils.find_xwinwrap_pid () with
+    | Some pid -> begin
+      Logs.info (fun m -> m "Game mode: killing xwinwrap");
       Unix.kill pid 15 |> Lwt.return
     end
     | None -> Lwt.return_unit in
@@ -36,6 +43,8 @@ let turn_off_game_mode () =
   let%lwt _ = Lwt_process.exec ("/usr/bin/systemctl", [| "systemctl"; "--user"; "start"; "syncthing.service" |]) in
   let%lwt _ = Lwt_process.exec ("/usr/bin/systemctl", [| "systemctl"; "--user"; "start"; "dunst.service" |]) in
   let%lwt _ = Lwt_process.exec ("/usr/bin/sudo", [|"sudo"; "servizi_steam.sh"; "start" |]) in
+  let wallpaper_script = (Unix.getenv "HOME")/".config/i3/set_wallpaper.sh" in
+  let%lwt _ = Lwt_process.exec (wallpaper_script, [|"set_wallpaper.sh"|]) in
   Lwt.return_unit
 
 let bluetooth_power_cycle () =
