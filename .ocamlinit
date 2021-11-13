@@ -28,7 +28,6 @@
 #load "base32.cmo";;
 
 #load "fa_icons.cmo";;
-#require "ppx_regexp";;
 #require "cohttp-lwt-unix";;
 #load "utils.cmo";;
 

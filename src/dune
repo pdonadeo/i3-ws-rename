@@ -33,7 +33,6 @@
   (preprocess (pps lwt
                    lwt.unix
                    lwt_ppx
-                   ppx_regexp
                    ppx_deriving_yojson
                    ppx_deriving.show))
   (libraries i3ipc
@@ -44,7 +43,6 @@
              lwt_glib
              logs.fmt
              logs.lwt
-             ppx_regexp
              fmt
              lwt-pipe
              glib

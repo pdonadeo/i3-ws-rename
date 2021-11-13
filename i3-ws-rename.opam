@@ -29,7 +29,6 @@ depends: [
     "lwt_glib"
     "ctypes"
     "ctypes-foreign"
-    "ppx_regexp"
     "cryptokit"
     "cohttp-lwt-unix"
     "lwt-pipe"

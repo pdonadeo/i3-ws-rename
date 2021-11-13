@@ -313,12 +313,14 @@ let get_user_process_list () =
 
   Lwt.return processes
 
+let picom_regex = Str.regexp "^picom"
+
 let find_picom_pid () =
   let%lwt processes = get_user_process_list () in
   ListLabels.find_map processes ~f:(fun (pid, cmd) ->
-    match%pcre cmd with
-    | {|^picom|} -> Some pid
-    | _ -> None
+    if Str.string_match picom_regex cmd 0
+    then Some pid
+    else None
   ) |> Lwt.return
 
 let read_hdd_temp () =
