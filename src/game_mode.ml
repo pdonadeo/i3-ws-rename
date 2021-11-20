@@ -11,6 +11,8 @@ type status =
   | Bluetooth_power_cycle
   [@@deriving yojson, show]
 
+let wallpaper_script = (Unix.getenv "HOME")/".config/i3/set_wallpaper.sh"
+
 let turn_on_game_mode () =
   let%lwt _ = Lwt_process.exec ("/usr/bin/sudo", [|"sudo"; "servizi_steam.sh"; "stop" |]) in
   let%lwt () = match%lwt Utils.find_picom_pid () with
@@ -29,6 +31,7 @@ let turn_on_game_mode () =
   let%lwt _ = Lwt_process.exec ("/usr/bin/systemctl", [| "systemctl"; "--user"; "stop"; "syncthing.service" |]) in
   let%lwt _ = Lwt_process.exec ("/usr/bin/systemctl", [| "systemctl"; "--user"; "stop"; "dunst.service" |]) in
   let%lwt _ = Lwt_process.exec ("/usr/bin/systemctl", [| "systemctl"; "--user"; "restart"; "pulseaudio.service" |]) in
+  let%lwt _ = Lwt_process.exec (wallpaper_script, [|"set_wallpaper.sh"; "reset"|]) in
   Lwt.return_unit
 
 let turn_off_game_mode () =
@@ -43,7 +46,6 @@ let turn_off_game_mode () =
   let%lwt _ = Lwt_process.exec ("/usr/bin/systemctl", [| "systemctl"; "--user"; "start"; "syncthing.service" |]) in
   let%lwt _ = Lwt_process.exec ("/usr/bin/systemctl", [| "systemctl"; "--user"; "start"; "dunst.service" |]) in
   let%lwt _ = Lwt_process.exec ("/usr/bin/sudo", [|"sudo"; "servizi_steam.sh"; "start" |]) in
-  let wallpaper_script = (Unix.getenv "HOME")/".config/i3/set_wallpaper.sh" in
   let%lwt _ = Lwt_process.exec (wallpaper_script, [|"set_wallpaper.sh"|]) in
   Lwt.return_unit
 
