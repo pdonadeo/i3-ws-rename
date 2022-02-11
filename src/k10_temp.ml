@@ -9,11 +9,11 @@ let spf = Printf.sprintf
 let hwmon_file_map_k10temp = Lwt_main.run (get_hwmon_file_map "k10temp")
 
 let tctl_thresholds = [|
-  30.25;  (* MIN k10temp/Tctl *)
-  39.25;  (* 25% k10temp/Tctl *)
-  45.875; (* 50% k10temp/Tctl *)
-  51.875; (* 75% k10temp/Tctl *)
-  58.375; (* 90% k10temp/Tctl *)
+  30.250; (* MIN k10temp/Tctl *)
+  40.825;
+  51.400; (* equally spaced k10temp/Tctl *)
+  61.975;
+  72.550;
   83.125; (* MAX k10temp/Tctl *)
 |]
 

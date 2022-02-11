@@ -7,12 +7,12 @@ let moving_average_length = 10
 let spf = Printf.sprintf
 
 let ssd_thresholds = [|
-  27.; (* MIN CT2000MX500SSD1/temp *)
-  38.; (* 25% CT2000MX500SSD1/temp *)
-  39.; (* 50% CT2000MX500SSD1/temp *)
-  39.; (* 75% CT2000MX500SSD1/temp *)
-  41.; (* 90% CT2000MX500SSD1/temp *)
-  66.; (* MAX CT2000MX500SSD1/temp *)
+  27.0; (* MIN CT2000MX500SSD1/temp *)
+  34.8;
+  42.6; (* equally spaced CT2000MX500SSD1/temp *)
+  50.4;
+  58.2;
+  66.0; (* MAX CT2000MX500SSD1/temp *)
 |]
 
 class ['a] modulo instance_name status_pipe color_good color_degraded color_bad sep : ['a] Lwt_module.modulo =

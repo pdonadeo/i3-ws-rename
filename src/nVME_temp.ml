@@ -18,12 +18,12 @@ let sensor2_thresholds = [|
 |]
 
 let composite_thresholds = [|
-  34.85; (* MIN nvme/Composite *)
-  50.85; (* 25% nvme/Composite *)
-  51.85; (* 50% nvme/Composite *)
-  52.85; (* 75% nvme/Composite *)
-  54.85; (* 90% nvme/Composite *)
-  62.85; (* MAX nvme/Composite *)
+  45.0; (* MIN nvme/Composite *)
+  48.6;
+  52.2; (* equally spaced nvme/Composite *)
+  55.8;
+  59.4;
+  63.0; (* MAX nvme/Composite *)
 |]
 
 let used_sensor_name = "Composite"          (* or "Sensor 2" *)
