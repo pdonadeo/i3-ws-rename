@@ -1,12 +1,12 @@
 opam-version: "2.0"
 name: "i3-ws-rename"
-version: "8"
+version: "9"
 synopsis: "Renames i3 workspaces using Font Awesome and handle status"
 description: "
 TODO
 "
-maintainer: "Paolo Donadeo <p.donadeo@gmail.com>"
-authors: "Paolo Donadeo <p.donadeo@gmail.com>"
+maintainer: "Paolo Donadeo <paolo@donadeo.net>"
+authors: "Paolo Donadeo <paolo@donadeo.net>"
 build: [
   ["dune" "subst"] {pinned}
   ["dune" "build" "-j" jobs "-p" name "@install"]
