@@ -121,7 +121,7 @@ let packet_of_int_list l =
 let packet_of_command c =
   match c with
   | WriteLedColorValues (color_channel, values) -> begin
-      let count = Stdlib__listLabels.length values in
+      let count = List.length values in
       packet_of_int_list ([ 0x32; 0; 0; count; int_of_color_channel color_channel] @ values)
     end
   | WriteLedTrigger -> packet_of_int_list [0x33; 0xff]

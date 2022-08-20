@@ -1,69 +1,71 @@
 (executable
-  (name i3_ws_rename)
-  (modules i3_ws_rename
-           lwt_module
-           i3_status
-           conf
-           fa_icons
-           constants
-           utils
-           reporter
-           disk_usage
-           load_avg
-           cpu
-           NVME_temp
-           SSD_temp
-           K10_temp
-           memory
-           i3bar_protocol
-           clock
-           volume
-           path_exists
-           case_fan_leds
-           whatsmyip
-           unix_ext
-           vpn_status
-           spotify_interfaces
-           spotify_client
-           spotify
-           dualsense_battery
-           otp
-           game_mode)
-  (foreign_stubs (language c) (names unix_ext_stubs))
-  (preprocess (pps lwt
-                   lwt.unix
-                   lwt_ppx
-                   ppx_deriving_yojson
-                   ppx_deriving.show))
-  (libraries i3ipc
-             cmdliner
-             lwt
-             lwt.unix
-             lwt_ppx
-             lwt_glib
-             logs.fmt
-             logs.lwt
-             fmt
-             lwt-pipe
-             glib
-             pulse
-             obus
-             obus.network_manager
-             batteries
-             uutf
-             str
-             clnp
-             base32
-             cohttp-lwt-unix
-             cryptokit
-             malloc))
+ (name i3_ws_rename)
+ (modules
+  i3_ws_rename
+  lwt_module
+  i3_status
+  conf
+  fa_icons
+  constants
+  utils
+  reporter
+  disk_usage
+  load_avg
+  cpu
+  NVME_temp
+  SSD_temp
+  K10_temp
+  memory
+  i3bar_protocol
+  clock
+  volume
+  path_exists
+  case_fan_leds
+  whatsmyip
+  unix_ext
+  vpn_status
+  spotify_interfaces
+  spotify_client
+  spotify
+  dualsense_battery
+  otp
+  game_mode)
+ (foreign_stubs
+  (language c)
+  (names unix_ext_stubs))
+ (preprocess
+  (pps lwt_ppx ppx_deriving_yojson ppx_deriving.show))
+ (libraries
+  i3ipc
+  cmdliner
+  lwt
+  lwt.unix
+  lwt_ppx
+  lwt_glib
+  logs.fmt
+  logs.lwt
+  fmt
+  lwt_pipe
+  glib
+  pulse
+  obus
+  obus.network_manager
+  batteries
+  uutf
+  str
+  clnp
+  base32
+  cohttp-lwt-unix
+  cryptokit
+  malloc))
 
 (rule
-  (alias compress)
-  (action (run upx i3_ws_rename.exe))
-)
+ (alias compress)
+ (action
+  (run upx i3_ws_rename.exe)))
 
 (install
-  (section bin)
-  (package i3-ws-rename)
-  (files (i3_ws_rename.exe as i3-ws-rename)))
+ (section bin)
+ (package i3-ws-rename)
+ (files
+  (i3_ws_rename.exe as i3-ws-rename)))

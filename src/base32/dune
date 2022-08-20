@@ -1,6 +1,4 @@
 (library
-  (name base32)
-  (wrapped false)
-  (modules seq
-           radix_n
-           base32))
+ (name base32)
+ (wrapped false)
+ (modules seq radix_n base32))

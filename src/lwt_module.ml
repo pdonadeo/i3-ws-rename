@@ -63,8 +63,8 @@ class virtual ['a] base_modulo instance status_pipe =
       Lwt.return_unit
 
     method run () : unit Lwt.t =
-      Lwt.async (self#loop);
-      Lwt.async (self#read_loop);
+      Utils.detach_promise self#loop "Lwt_module.base_modulo #loop method";
+      Utils.detach_promise self#read_loop "Lwt_module.base_modulo #read_loop method";
       Lwt.wakeup (snd ready) ();
       (fst ready)
 

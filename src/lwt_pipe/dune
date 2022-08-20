@@ -1,0 +1,5 @@
+(library
+ (name lwt_pipe)
+ (wrapped false)
+ (libraries lwt lwt.unix)
+ (flags :standard -w +a-4 -warn-error -a+8 -safe-string))

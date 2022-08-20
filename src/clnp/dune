@@ -1,12 +1,7 @@
 (library
-  (name clnp)
-  (wrapped false)
-  (modules Corsair_Lighting_Node_Pro
-           animation)
-  (preprocess (pps lwt
-                   lwt.unix
-                   lwt_ppx))
-  (libraries lwt
-             lwt.unix
-             usb
-             color))
+ (name clnp)
+ (wrapped false)
+ (modules Corsair_Lighting_Node_Pro animation)
+ (preprocess
+  (pps lwt_ppx))
+ (libraries lwt lwt.unix usb color))

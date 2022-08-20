@@ -1,0 +1,14 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"label": "Build",
+			"command": "eval (opam env) ;and dune build --watch --terminal-persistence=clear-on-rebuild",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		}
+	]
+}

@@ -1,4 +1,45 @@
-(lang dune 2.0)
+(lang dune 3.4)
+
 (name i3-ws-rename)
-(wrapped_executables false)
-(version 1.0)
+
+(version 10)
+
+(generate_opam_files true)
+
+(authors "Paolo Donadeo")
+(bug_reports "https://github.com/pdonadeo/i3-ws-rename/issues")
+(homepage "https://github.com/pdonadeo/i3-ws-rename")
+(license ISC)
+(maintainers "paolo@donadeo.net")
+(source (uri git+https://github.com/pdonadeo/i3-ws-rename))
+
+(package
+ (name i3-ws-rename)
+ (synopsis "Renames i3 workspaces using Font Awesome")
+ (description "Renames i3 workspaces using Font Awesome")
+ (homepage https://gitlab.4sigma.it/pdonadeo/mare-magnum-injector)
+ (depends
+  (dune (= 3.4.1))
+  (cryptokit (= 1.17))
+  (lwt_ppx (= 2.1.0))
+  (cohttp-lwt-unix (= 5.0.0))
+  (ppx_deriving_yojson (= 3.6.1))
+  (batteries (= 3.5.1))
+  (obus (= 1.2.3))
+  (lwt_glib (= 1.1.1))
+  (i3ipc (= 0.4))
+  (ctypes-foreign (= 0.18.0))
+  (color (= 0.2.0))
+  (usb (= 1.3.1))
+  (lwt_ssl (= 1.1.3))
+
+  (utop (and :dev (= 2.10.0)))
+  (merlin (and :dev (= 4.6-414)))
+  (ocp-indent (and :dev (= 1.8.1)))
+  (ocp-index (and :dev (= 1.3.3)))
+  (ocamlformat (and :dev (= 0.23.0)))
+  (odoc (and :dev (= 2.1.1)))
+  (odig (and :dev (= 0.0.8)))
+  (ocaml-lsp-server (and :dev (= 1.13.1)))
+ )
+)

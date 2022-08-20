@@ -69,7 +69,7 @@ class ['a] modulo instance status_pipe color color_degraded color_bad separator 
                 Lwt.return ()
               end else begin
                 state <- { show = true; current_secret = 0 };
-                Lwt.async self#update_state;
+                Utils.detach_promise self#update_state "Otp.modulo#update_state";
                 Lwt.return ()
               end
             end
