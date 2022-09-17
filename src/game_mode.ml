@@ -50,9 +50,7 @@ let turn_off_game_mode () =
   Lwt.return_unit
 
 let bluetooth_power_cycle () =
-  let%lwt _ = Lwt_process.exec ("/usr/bin/sudo", [|"sudo"; "systemctl"; "stop"; "bluetooth.service"|]) in
-  let%lwt () = Lwt_unix.sleep 3.0 in
-  let%lwt _ = Lwt_process.exec ("/usr/bin/sudo", [|"sudo"; "systemctl"; "start"; "bluetooth.service"|]) in
+  let%lwt _ = Lwt_process.exec ("/usr/bin/sudo", [|"sudo"; "bluetooth_cycle.sh"; "start" |]) in
   Lwt.return_unit
 
 class ['a] modulo instance status_pipe color color_degraded separator : ['a] Lwt_module.modulo =
