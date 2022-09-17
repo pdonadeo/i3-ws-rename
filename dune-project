@@ -2,7 +2,7 @@
 
 (name i3-ws-rename)
 
-(version 10)
+(version 11)
 
 (generate_opam_files true)
 
