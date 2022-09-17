@@ -38,9 +38,22 @@ let modules : [`r | `w] Lwt_module.modulo list =
     new Volume.modulo "0" pipe color color_degraded false;
   ]
 
+let rec protected_read_line ?(count = 0) ic =
+  try%lwt Lwt_io.read_line ic with
+  | End_of_file -> begin
+    Logs.err (fun m -> m "End of file reached reading click events");
+    if count > 3
+    then begin
+      Logs.err (fun m -> m "Too many errors reading click events, exiting");
+      raise End_of_file
+    end
+    else protected_read_line ~count:(count + 1) ic
+  end
+  | exn -> Lwt.fail exn
+
 let rec read_click_event () =
   let open Lwt_io in
-  let%lwt l = read_line stdin in
+  let%lwt l = protected_read_line stdin in
   if l = "["
   then read_click_event ()
   else begin

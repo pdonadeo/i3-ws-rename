@@ -172,10 +172,7 @@ let manage_fullscreen full_screen_win_number =
       | None -> Lwt.return_unit
     end
   end
-  | _ -> begin
-    Logs.info (fun m -> m "Ignoring full screen events because we are in Game Mode");
-    Lwt.return_unit
-  end
+  | _ -> Lwt.return_unit
 
 let handle_win_event conf conn (event_info : I3ipc.Event.window_event_info) =
   let open I3ipc in

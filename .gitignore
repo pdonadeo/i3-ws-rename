@@ -41,3 +41,5 @@ log.txt
 py3status.json
 py3status.log
 script.ml
+
+*.code-workspace
