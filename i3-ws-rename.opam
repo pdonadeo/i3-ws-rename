@@ -9,12 +9,12 @@ license: "ISC"
 homepage: "https://gitlab.4sigma.it/pdonadeo/mare-magnum-injector"
 bug-reports: "https://github.com/pdonadeo/i3-ws-rename/issues"
 depends: [
-  "dune" {>= "3.4" & = "3.4.1"}
-  "cryptokit" {= "1.17"}
+  "dune" {>= "3.6" & = "3.6.1"}
+  "cryptokit" {= "1.18"}
   "lwt_ppx" {= "2.1.0"}
   "cohttp-lwt-unix" {= "5.0.0"}
   "ppx_deriving_yojson" {= "3.6.1"}
-  "batteries" {= "3.5.1"}
+  "batteries" {= "3.6.0"}
   "obus" {= "1.2.3"}
   "lwt_glib" {= "1.1.1"}
   "i3ipc" {= "0.4"}
@@ -22,14 +22,14 @@ depends: [
   "color" {= "0.2.0"}
   "usb" {= "1.3.1"}
   "lwt_ssl" {= "1.1.3"}
-  "utop" {dev & = "2.10.0"}
-  "merlin" {dev & = "4.6-414"}
+  "utop" {dev & = "2.11.0"}
+  "merlin" {dev & = "4.7-414"}
   "ocp-indent" {dev & = "1.8.1"}
-  "ocp-index" {dev & = "1.3.3"}
-  "ocamlformat" {dev & = "0.23.0"}
-  "odoc" {dev & = "2.1.1"}
+  "ocp-index" {dev & = "1.3.4"}
+  "ocamlformat" {dev & = "0.24.1"}
+  "odoc" {dev & = "2.2.0"}
   "odig" {dev & = "0.0.8"}
-  "ocaml-lsp-server" {dev & = "1.13.1"}
+  "ocaml-lsp-server" {dev & = "1.15.0-4.14"}
   "odoc" {with-doc}
 ]
 build: [
