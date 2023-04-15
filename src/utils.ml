@@ -410,13 +410,21 @@ let read_json_configuration decoder fname =
         (* TODO *))
   | None -> Lwt.return []
 
-let detach_promise f (handler_label : string) =
-  let handler exn =
+let detach_promise ?(restart = false) f (handler_label : string) =
+  let rec handler exn =
     Logs.err (fun p -> p "Exception in detached promise %s" handler_label);
     Logs.err (fun p -> p "    %s" (Printexc.to_string exn));
     Printexc.get_backtrace ()
     |> String.split_on_char '\n'
     |> List.filter (fun l -> if String.trim l = "" then false else true)
-    |> List.iter (fun l -> Logs.err (fun p -> p "    %s" l))
+    |> List.iter (fun l -> Logs.err (fun p -> p "    %s" l));
+    if restart
+    then
+      Lwt.dont_wait
+        (fun () ->
+          Logs.err (fun p -> p "Waiting 5 seconds and restarting %s" handler_label);
+          let%lwt () = Lwt_unix.sleep 5.0 in
+          f ())
+        handler
   in
   Lwt.dont_wait f handler
