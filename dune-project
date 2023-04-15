@@ -1,8 +1,8 @@
-(lang dune 3.6)
+(lang dune 3.7)
 
 (name i3-ws-rename)
 
-(version 11)
+(version 12)
 
 (generate_opam_files true)
 
@@ -19,7 +19,7 @@
  (description "Renames i3 workspaces using Font Awesome")
  (homepage https://gitlab.4sigma.it/pdonadeo/mare-magnum-injector)
  (depends
-  (dune (= 3.6.1))
+  (dune (= 3.7.0))
   (cryptokit (= 1.18))
   (lwt_ppx (= 2.1.0))
   (cohttp-lwt-unix (= 5.0.0))
@@ -31,15 +31,15 @@
   (ctypes-foreign (= 0.18.0))
   (color (= 0.2.0))
   (usb (= 1.3.1))
-  (lwt_ssl (= 1.1.3))
+  (lwt_ssl (= 1.2.0))
 
   (utop (and :dev (= 2.11.0)))
-  (merlin (and :dev (= 4.7-414)))
+  (merlin (and :dev (= 4.8-414)))
   (ocp-indent (and :dev (= 1.8.1)))
   (ocp-index (and :dev (= 1.3.4)))
-  (ocamlformat (and :dev (= 0.24.1)))
+  (ocamlformat (and :dev (= 0.25.1)))
   (odoc (and :dev (= 2.2.0)))
   (odig (and :dev (= 0.0.8)))
-  (ocaml-lsp-server (and :dev (= 1.15.0-4.14)))
+  (ocaml-lsp-server (and :dev (= 1.15.1-4.14)))
  )
 )
