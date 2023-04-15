@@ -30,6 +30,7 @@ let turn_on_game_mode () =
   let%lwt _ = Lwt_process.exec ("/usr/bin/xset", [|"xset"; "s"; "off"; "-dpms";|]) in
   let%lwt _ = Lwt_process.exec ("/usr/bin/systemctl", [| "systemctl"; "--user"; "stop"; "syncthing.service" |]) in
   let%lwt _ = Lwt_process.exec ("/usr/bin/systemctl", [| "systemctl"; "--user"; "stop"; "dunst.service" |]) in
+  let%lwt _ = Lwt_process.exec ("/usr/bin/systemctl", [| "systemctl"; "--user"; "stop"; "go-cervino.service" |]) in
   let%lwt _ = Lwt_process.exec ("/usr/bin/systemctl", [| "systemctl"; "--user"; "restart"; "pipewire.service"; "pipewire.socket"; "pipewire-pulse.service"; "pipewire-pulse.socket"; "pipewire-session-manager.service"|]) in
   let%lwt _ = Lwt_process.exec (wallpaper_script, [|"set_wallpaper.sh"; "reset"|]) in
   Lwt.return_unit
@@ -45,6 +46,7 @@ let turn_off_game_mode () =
   let%lwt _ = Lwt_process.exec ("/usr/bin/xset", [|"xset"; "dpms"; "600"; "600"; "600" |]) in
   let%lwt _ = Lwt_process.exec ("/usr/bin/systemctl", [| "systemctl"; "--user"; "start"; "syncthing.service" |]) in
   let%lwt _ = Lwt_process.exec ("/usr/bin/systemctl", [| "systemctl"; "--user"; "start"; "dunst.service" |]) in
+  let%lwt _ = Lwt_process.exec ("/usr/bin/systemctl", [| "systemctl"; "--user"; "start"; "go-cervino.service" |]) in
   let%lwt _ = Lwt_process.exec ("/usr/bin/sudo", [|"sudo"; "servizi_steam.sh"; "start" |]) in
   let%lwt _ = Lwt_process.exec (wallpaper_script, [|"set_wallpaper.sh"|]) in
   Lwt.return_unit
