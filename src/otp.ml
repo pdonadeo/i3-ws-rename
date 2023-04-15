@@ -22,11 +22,17 @@ let compute_otp secret =
   let epoch_div_30 = (Unix.time () |> int_of_float) / 30 |> spf "%016x" in
   let epoch_mod_30 = (Unix.time () |> int_of_float) mod 30 in
   let hmac = hmac_sha1 secret_hex epoch_div_30 in
-  let offset = int_of_string ("0x"^(String.make 1 hmac.[39])) in
-  let otp' =
-    int_of_string ("0x"^(String.sub hmac (offset*2) 8)) land 0x7fffffff |>
-    string_of_int in
-  String.sub otp' ((String.length otp') - 6) 6, (30 - epoch_mod_30)
+  let offset = int_of_string ("0x" ^ String.make 1 hmac.[39]) in
+  let otp' = int_of_string ("0x" ^ String.sub hmac (offset * 2) 8) land 0x7fffffff |> string_of_int in
+  try
+    (* ATTENZIONE: va in eccezione per valori di time compresi tra
+       1673299710.0 e 1673299739.0 inclusi.
+       Riproducibile anche qui:
+         http://blog.tinisles.com/2011/10/google-authenticator-one-time-password-algorithm-in-javascript/
+         http://jsfiddle.net/rc2due41/4/
+     *)
+    (String.sub otp' (String.length otp' - 6) 6, 30 - epoch_mod_30)
+  with Invalid_argument _ -> ("XXXXXX", 30 - epoch_mod_30)
 
 
 type status = {
