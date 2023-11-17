@@ -1,7 +1,0 @@
-(library
- (name pulse)
- (wrapped false)
- (modules pulse)
- (libraries ctypes ctypes.foreign glib)
- (c_library_flags
-  (-lpulse-mainloop-glib -lpulse -lglib-2.0)))

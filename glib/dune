@@ -1,6 +1,0 @@
-(library
- (name glib)
- (wrapped false)
- (modules glib)
- (libraries ctypes ctypes.foreign)
- (c_library_flags (-lglib-2.0)))

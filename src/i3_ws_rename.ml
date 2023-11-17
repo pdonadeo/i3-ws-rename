@@ -54,21 +54,15 @@ let get_workspaces_nodes root =
     root
   |> List.rev
 
-let get_windows_nodes root =
-  traverse_deep_first
-    (fun acc _depth n _parent ->
-      let open I3ipc in
-      let open Reply in
-      if n.nodetype = Con || n.nodetype = Floating_con then n :: acc else acc)
-    []
-    root
-  |> List.rev
-
 let string_of_node conf (node : I3ipc.Reply.node) =
   let open I3ipc in
   let open Reply in
   match node.window_properties with
-  | None -> "N/A"
+  | None -> begin
+    match Conf.search_app_id_name conf node.app_id node.name with
+    | Some icon -> icon
+    | None -> (* TODO *) "�"
+  end
   | Some wp -> begin
     match (wp.class_, wp.instance) with
     | None, None -> "�"
@@ -110,6 +104,10 @@ let rename_workspace conf conn ws =
   let ws_name = opt_def ~def:"N/A" ws.name in
   let ws_num = opt_def ~def:0 ws.num in
 
+  Format.fprintf Format.str_formatter "%a" Reply.pp_node ws;
+  let ws_str = Format.flush_str_formatter () in
+  Logs.err (fun m -> m "NODE: %s" ws_str);
+
   Logs.debug (fun m -> m "====================================================");
   Logs.debug (fun m -> m "WORKSPACE NUMBER %d (%s)" ws_num ws_name);
   let leaves = extract_leaves ws in
@@ -132,63 +130,14 @@ let rename_workspace conf conn ws =
   end
   else Lwt.return ()
 
-let manage_fullscreen full_screen_win_number =
-  let%lwt game_mode_s = I3_status.game_mode_module#dump_state () in
-  let game_mode_state_or_error = Yojson.Safe.from_string game_mode_s |> Game_mode.status_of_yojson in
-  match game_mode_state_or_error with
-  | Result.Ok Game_mode.Game_mode_off -> begin
-    if full_screen_win_number = 0
-    then begin
-      match%lwt find_picom_pid () with
-      | Some _pid -> Lwt.return_unit
-      | None -> begin
-        let%lwt status = Lwt_process.exec ("picom", [|"picom"; "-b"; "-f"; "-D"; "3"; "-C"; "-G"|]) in
-        (match status with
-        | Unix.WEXITED 0 -> Logs.info (fun m -> m "picom successfully started")
-        | _ -> Logs.err (fun m -> m "Error while starting picom"));
-        let%lwt status = Lwt_process.exec ("xset", [|"xset"; "s"; "300"; "300"|]) in
-        (match status with
-        | Unix.WEXITED 0 -> Logs.info (fun m -> m "xset screen saver set to 5 minutes")
-        | _ -> Logs.err (fun m -> m "Error while setting screen saver"));
-        let%lwt status = Lwt_process.exec ("xset", [|"xset"; "dpms"; "600"; "600"; "600"|]) in
-        (match status with
-        | Unix.WEXITED 0 -> Logs.info (fun m -> m "xset screen OFF in 10 minutes")
-        | _ -> Logs.err (fun m -> m "Error while setting DPMS"));
-        Lwt.return_unit
-      end
-    end
-    else begin
-      match%lwt find_picom_pid () with
-      | Some pid -> begin
-        Logs.info (fun m -> m "Some fullscreen windows: killing picom");
-        Unix.kill pid 15;
-
-        let%lwt status = Lwt_process.exec ("xset", [|"xset"; "s"; "off"; "-dpms"|]) in
-        (match status with
-        | Unix.WEXITED 0 -> Logs.info (fun m -> m "Screen saver and DPMS disabled")
-        | _ -> Logs.err (fun m -> m "Error while turning blank screen off"));
-        Lwt.return_unit
-      end
-      | None -> Lwt.return_unit
-    end
-  end
-  | _ -> Lwt.return_unit
-
 let handle_win_event conf conn (event_info : I3ipc.Event.window_event_info) =
   let open I3ipc in
   let%lwt tree = get_tree conn in
   match event_info.Event.change with
-  | Event.New | Close | Title | Move | FullscreenMode -> begin
+  | Event.New | Close | Title | Move -> begin
     let ws_nodes = get_workspaces_nodes tree in
     let%lwt () = Lwt_list.iter_p (rename_workspace conf conn) ws_nodes in
-
-    let open Reply in
-    let windows_nodes = get_windows_nodes tree in
-    let windows_in_fullscreen =
-      ListLabels.fold_left windows_nodes ~init:0 ~f:(fun w_in_full w ->
-          if w.fullscreen_mode <> No_fullscreen then w_in_full + 1 else w_in_full)
-    in
-    manage_fullscreen windows_in_fullscreen
+    Lwt.return_unit
   end
   | _ -> Lwt.return ()
 
@@ -249,33 +198,14 @@ let rec protected_loop conf conn =
 
 let rec gc_loop () =
   let open Gc in
-  let path = "/proc/" ^ (Unix.getpid () |> string_of_int) ^ "/status" in
   let%lwt () = Lwt_unix.sleep 60.0 in
   Logs.debug (fun m -> m "GARBAGE COLLECTION LOOP");
-  let stat' = stat () in
-  let%lwt memstats = Utils.get_meminfo ~path () in
-  Logs.debug (fun m -> m "BEFORE GC: heap_words = %d; live_words = %d" stat'.heap_words stat'.live_words);
-  Logs.debug (fun m -> m "           VmRSS = %d" (BatMap.String.find "VmRSS" memstats));
   compact ();
-  let stat' = stat () in
-  let%lwt memstats = Utils.get_meminfo ~path () in
-  Logs.debug (fun m -> m "AFTER  GC: heap_words = %d; live_words = %d" stat'.heap_words stat'.live_words);
-  Logs.debug (fun m -> m "           VmRSS = %d" (BatMap.String.find "VmRSS" memstats));
   gc_loop ()
-
-let rec clear_color_profile () =
-  let%lwt res = Lwt_process.exec ("/usr/bin/xprop", [|"xprop"; "-root"; "-remove"; "_ICC_PROFILE"|]) in
-  let () =
-    match res with
-    | Unix.WEXITED 0 -> Logs.debug (fun m -> m "Color profile cleared")
-    | _ -> Logs.err (fun m -> m "Error while clearing color profile")
-  in
-  let%lwt () = Lwt_unix.sleep 3.0 in
-  clear_color_profile ()
 
 let _ = Lwt_unix.on_signal Sys.sigterm (fun s -> Lwt.wakeup do_shutdown s)
 
-let main _unique verbose log_fname conf_fname otp_conf_fname state_fname =
+let main _unique verbose log_fname conf_fname otp_conf_fname =
   Logs.set_reporter (Reporter.lwt_file_reporter (Some log_fname));
   if verbose then Logs.set_level (Some Logs.Debug) else Logs.set_level (Some Logs.Info);
 
@@ -284,10 +214,8 @@ let main _unique verbose log_fname conf_fname otp_conf_fname state_fname =
   Conf.otp_global_configuration := otp_conf;
 
   detach_promise gc_loop "gc_loop";
-  detach_promise clear_color_profile "clear_color_profile";
-  let status_completed = I3_status.entry_point state_fname shutdown in
   let%lwt conn = connect_and_subscribe () in
-  let%lwt _ = Lwt.all [protected_loop conf conn; status_completed ()] in
+  let%lwt _ = Lwt.all [protected_loop conf conn] in
   let%lwt () = Lwt_unix.sleep 1.0 in
   Lwt.return_unit
 
@@ -323,13 +251,7 @@ let otp_conf_fname =
   let doc = "Specifies an alternate configuration file for the OTP secrets." in
   Arg.(value & opt string otp_conf_fname_def & info ["o"; "otp"] ~docv:"OTP" ~doc)
 
-let state_fname_def = get_default_conf_fname "state.json"
-
-let state_fname =
-  let doc = "Specifies an alternate state file path." in
-  Arg.(value & opt string state_fname_def & info ["s"; "state"] ~docv:"STATE" ~doc)
-
-let main' u daemon verbose log_fname conf_fname otp_conf_fname state_fname =
+let main' u daemon verbose log_fname conf_fname otp_conf_fname =
   let cd = Unix.getcwd () in
   let log_fname = if Filename.is_relative log_fname then cd / log_fname else log_fname in
 
@@ -362,8 +284,7 @@ let main' u daemon verbose log_fname conf_fname otp_conf_fname state_fname =
   mkdir_p (Filename.dirname log_fname) 0o755;
 
   if daemon then daemonize ~cd ();
-  Lwt_glib.install ();
-  Lwt_main.run (main u verbose log_fname conf_fname otp_conf_fname state_fname)
+  Lwt_main.run (main u verbose log_fname conf_fname otp_conf_fname)
 
 let () = Printexc.record_backtrace true
 let () = Gc.set { (Gc.get ()) with Gc.allocation_policy = 2; Gc.space_overhead = 85 }
@@ -376,6 +297,6 @@ let cmd =
     let man = [`S Manpage.s_bugs; `P "Bug reports on GitHub: https://github.com/pdonadeo/i3-ws-rename/issues"] in
     Cmd.info "%%NAME%%" ~version:"%%VERSION%%" ~doc ~exits:Cmd.Exit.defaults ~man
   in
-  Cmd.v info Term.(const main' $ unique $ daemon $ verbose $ log_fname $ conf_fname $ otp_conf_fname $ state_fname)
+  Cmd.v info Term.(const main' $ unique $ daemon $ verbose $ log_fname $ conf_fname $ otp_conf_fname)
 
 let () = exit (Cmd.eval cmd)
