@@ -50,26 +50,6 @@ let search_instance conf instance =
          let icon = r.fa_icon in
          Fa_icons.get_icon_string icon)
 
-let search_app_id_name conf app_id name =
-  let app_id = opt_map ~f:String.lowercase_ascii app_id in
-  let name = opt_map ~f:String.lowercase_ascii name in
-  let app_id_str =
-    match app_id with
-    | Some s -> spf "(Some %s)" s
-    | None -> "None"
-  in
-  let name_str =
-    match name with
-    | Some s -> spf "(Some %s)" s
-    | None -> "None"
-  in
-  Logs.debug (fun m -> m "search_app_id_name %s %s" app_id_str name_str);
-  List.filter (fun record -> record.app_id = app_id && record.name = name) conf
-  |> hd_opt
-  |> opt_map ~f:(fun r ->
-         let icon = r.fa_icon in
-         Fa_icons.get_icon_string icon)
-
 let search_class_instance conf class_ instance =
   let class_ = String.lowercase_ascii class_ in
   let instance = String.lowercase_ascii instance in
@@ -88,15 +68,3 @@ let search_class_instance conf class_ instance =
   |> opt_map ~f:(fun r ->
          let icon = r.fa_icon in
          Fa_icons.get_icon_string icon)
-
-type otp_record = {
-  name : string;
-  icon : string option; [@default None]
-  secret : string;
-}
-[@@deriving yojson]
-
-type otp_configuration = otp_record list [@@deriving yojson]
-
-let read_otp_configuration fname = Utils.read_json_configuration otp_configuration_of_yojson fname
-let otp_global_configuration : otp_configuration ref = ref []

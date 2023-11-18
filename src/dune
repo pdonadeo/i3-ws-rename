@@ -1,7 +1,7 @@
 (executable
- (name i3_ws_rename)
+ (name ws_rename)
  (modules
-  i3_ws_rename
+  ws_rename
   conf
   fa_icons
   constants
@@ -17,15 +17,16 @@
   fmt
   batteries
   str
-  malloc))
+  malloc
+  re2))
 
 (rule
  (alias compress)
  (action
-  (run upx i3_ws_rename.exe)))
+  (run upx ws_rename.exe)))
 
 (install
  (section bin)
  (package i3-ws-rename)
  (files
-  (i3_ws_rename.exe as i3-ws-rename)))
+  (ws_rename.exe as ws-rename)))

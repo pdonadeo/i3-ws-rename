@@ -31,6 +31,7 @@
   (color (= 0.2.0))
   (usb (= 1.3.1))
   (lwt_ssl (= 1.2.0))
+  (re2 (= v0.15.0))
 
   (utop (and :dev (= 2.11.0)))
   (merlin (and :dev (= 4.8-414)))

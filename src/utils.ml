@@ -94,7 +94,7 @@ let get_default_conf_fname fname =
 
   let skip_xdg_config_home () =
     let home = Unix.getenv "HOME" in
-    let c = home / ".config" / "i3" / fname in
+    let c = home / ".config" / "sway" / fname in
     if file_exists_and_is_readable c
     then c
     else begin
@@ -105,7 +105,7 @@ let get_default_conf_fname fname =
 
   match getenv "XDG_CONFIG_HOME" with
   | Some xdg_config_home -> begin
-    let c = xdg_config_home / "i3" / fname in
+    let c = xdg_config_home / "sway" / fname in
     if file_exists_and_is_readable c then c else skip_xdg_config_home ()
   end
   | None -> skip_xdg_config_home ()

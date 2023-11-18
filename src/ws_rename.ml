@@ -59,9 +59,35 @@ let string_of_node conf (node : I3ipc.Reply.node) =
   let open Reply in
   match node.window_properties with
   | None -> begin
-    match Conf.search_app_id_name conf node.app_id node.name with
-    | Some icon -> icon
-    | None -> (* TODO *) "�"
+    match node.app_id with
+    | Some app_id -> begin
+      let app_id = String.lowercase_ascii app_id in
+      let app_id_records = List.filter (fun r -> r.Conf.app_id = Some app_id) conf in
+      match node.name with
+      | Some node_name -> begin
+        let node_name = String.lowercase_ascii node_name in
+        List.filter
+          (fun r ->
+            match r.Conf.name with
+            | None -> true
+            | Some name -> Re2.matches (Re2.create_exn name) node_name)
+          app_id_records
+        |> Conf.hd_opt
+        |> opt_map ~f:(fun r ->
+               let icon = r.Conf.fa_icon in
+               Fa_icons.get_icon_string icon)
+        |> opt_def ~def:"�"
+      end
+      | None -> begin
+        List.filter (fun r -> r.Conf.name = None) app_id_records
+        |> Conf.hd_opt
+        |> opt_map ~f:(fun r ->
+               let icon = r.Conf.fa_icon in
+               Fa_icons.get_icon_string icon)
+        |> opt_def ~def:"�"
+      end
+    end
+    | None -> "�"
   end
   | Some wp -> begin
     match (wp.class_, wp.instance) with
@@ -113,7 +139,7 @@ let rename_workspace conf conn ws =
   let leaves = extract_leaves ws in
   List.iter (fun (leaf : node) -> Logs.debug (fun m -> m "    %s; %s" leaf.id (opt_def ~def:"N/A" leaf.name))) leaves;
   let new_name = leaves |> List.map (string_of_node conf) |> remove_dups |> String.concat "|" in
-  let new_name = if new_name = "" then string_of_int ws_num else Printf.sprintf "%d: %s" ws_num new_name in
+  let new_name = if new_name = "" then string_of_int ws_num else Printf.sprintf "%d:%s" ws_num new_name in
   if ws_name <> new_name
   then begin
     let cmd = spf "rename workspace \"%s\" to \"%s\"" ws_name new_name in
@@ -185,14 +211,14 @@ let rec protected_loop conf conn =
     handle_protocol_error e;
     if not (Lwt.is_sleeping shutdown)
     then begin
-      Logs.info (fun m -> m "i3 shutdown, exiting");
+      Logs.info (fun m -> m "Sway shutdown, exiting");
       Lwt.return ()
     end
     else begin
-      Logs.info (fun m -> m "i3 is restarting, wait a second...");
+      Logs.info (fun m -> m "Sway is restarting, wait a second...");
       let%lwt () = Lwt_unix.sleep 1.0 in
       let%lwt conn = connect_and_subscribe () in
-      Logs.debug (fun m -> m "...reconnected to i3");
+      Logs.debug (fun m -> m "...reconnected to Swat");
       protected_loop conf conn
     end
 
@@ -205,13 +231,11 @@ let rec gc_loop () =
 
 let _ = Lwt_unix.on_signal Sys.sigterm (fun s -> Lwt.wakeup do_shutdown s)
 
-let main _unique verbose log_fname conf_fname otp_conf_fname =
+let main _unique verbose log_fname conf_fname =
   Logs.set_reporter (Reporter.lwt_file_reporter (Some log_fname));
   if verbose then Logs.set_level (Some Logs.Debug) else Logs.set_level (Some Logs.Info);
 
   let%lwt conf = Conf.read_icons_configuration conf_fname in
-  let%lwt otp_conf = Conf.read_otp_configuration otp_conf_fname in
-  Conf.otp_global_configuration := otp_conf;
 
   detach_promise gc_loop "gc_loop";
   let%lwt conn = connect_and_subscribe () in
@@ -233,7 +257,7 @@ let verbose =
   let doc = "Print debug informations." in
   Arg.(value & flag & info ["v"; "verbose"] ~doc)
 
-let log_fname_def = Unix.getenv "HOME" / ".cache/i3-ws-rename/log.txt"
+let log_fname_def = Unix.getenv "HOME" / ".cache/ws-rename/log.txt"
 
 let log_fname =
   let doc = "Position of the log file." in
@@ -245,13 +269,7 @@ let conf_fname =
   let doc = "Specifies an alternate configuration file path." in
   Arg.(value & opt string conf_fname_def & info ["c"; "conf"] ~docv:"CONFIGURATION" ~doc)
 
-let otp_conf_fname_def = get_default_conf_fname "otp.json"
-
-let otp_conf_fname =
-  let doc = "Specifies an alternate configuration file for the OTP secrets." in
-  Arg.(value & opt string otp_conf_fname_def & info ["o"; "otp"] ~docv:"OTP" ~doc)
-
-let main' u daemon verbose log_fname conf_fname otp_conf_fname =
+let main' u daemon verbose log_fname conf_fname =
   let cd = Unix.getcwd () in
   let log_fname = if Filename.is_relative log_fname then cd / log_fname else log_fname in
 
@@ -268,23 +286,10 @@ let main' u daemon verbose log_fname conf_fname otp_conf_fname =
     end
   in
 
-  let otp_conf_fname =
-    if otp_conf_fname = ""
-    then None
-    else begin
-      if file_exists_and_is_readable otp_conf_fname
-      then Some otp_conf_fname
-      else begin
-        Printf.eprintf "ERROR: file \"%s\" does not exist or not readable.\n%!" otp_conf_fname;
-        exit 1
-      end
-    end
-  in
-
   mkdir_p (Filename.dirname log_fname) 0o755;
 
   if daemon then daemonize ~cd ();
-  Lwt_main.run (main u verbose log_fname conf_fname otp_conf_fname)
+  Lwt_main.run (main u verbose log_fname conf_fname)
 
 let () = Printexc.record_backtrace true
 let () = Gc.set { (Gc.get ()) with Gc.allocation_policy = 2; Gc.space_overhead = 85 }
@@ -292,11 +297,11 @@ let () = Gc.set { (Gc.get ()) with Gc.allocation_policy = 2; Gc.space_overhead =
 let cmd =
   let info =
     let doc =
-      "Dynamically update i3wm workspace names based on running applications in each and optionally define an icon to show instead."
+      "Dynamically update Sway workspace names based on running applications in each and optionally define an icon to show instead."
     in
     let man = [`S Manpage.s_bugs; `P "Bug reports on GitHub: https://github.com/pdonadeo/i3-ws-rename/issues"] in
     Cmd.info "%%NAME%%" ~version:"%%VERSION%%" ~doc ~exits:Cmd.Exit.defaults ~man
   in
-  Cmd.v info Term.(const main' $ unique $ daemon $ verbose $ log_fname $ conf_fname $ otp_conf_fname)
+  Cmd.v info Term.(const main' $ unique $ daemon $ verbose $ log_fname $ conf_fname)
 
 let () = exit (Cmd.eval cmd)
