@@ -1,8 +1,8 @@
 (lang dune 3.7)
 
-(name i3-ws-rename)
+(name ws-rename)
 
-(version 13)
+(version 14)
 
 (generate_opam_files true)
 
@@ -14,9 +14,9 @@
 (source (uri git+https://github.com/pdonadeo/i3-ws-rename))
 
 (package
- (name i3-ws-rename)
- (synopsis "Renames i3 workspaces using Font Awesome")
- (description "Renames i3 workspaces using Font Awesome")
+ (name ws-rename)
+ (synopsis "Renames i3/Sway workspaces using Font Awesome")
+ (description "Renames i3/Sway workspaces using Font Awesome")
  (homepage https://gitlab.4sigma.it/pdonadeo/mare-magnum-injector)
  (depends
   (dune (= 3.7.0))

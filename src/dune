@@ -27,6 +27,6 @@
 
 (install
  (section bin)
- (package i3-ws-rename)
+ (package ws-rename)
  (files
   (ws_rename.exe as ws-rename)))
