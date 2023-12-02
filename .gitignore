@@ -33,13 +33,6 @@ contrib
 i3-ws-rename.install
 
 # Working stuff
-config_py3status
-convert.py
-convertire_code_point_in_utf8.ml
-fontawesome-pro-5.11.2-desktop_metadata_icons.json
-log.txt
-py3status.json
-py3status.log
 script.ml
 
 *.code-workspace

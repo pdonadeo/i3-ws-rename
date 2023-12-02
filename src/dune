@@ -1,24 +1,9 @@
 (executable
  (name ws_rename)
- (modules
-  ws_rename
-  conf
-  fa_icons
-  constants
-  utils
-  reporter)
+ (modules ws_rename conf utils reporter)
  (preprocess
   (pps lwt_ppx ppx_deriving_yojson ppx_deriving.show))
- (libraries
-  i3ipc
-  cmdliner
-  lwt
-  logs.fmt
-  fmt
-  batteries
-  str
-  malloc
-  re2))
+ (libraries i3ipc cmdliner lwt logs.fmt fmt batteries str malloc re2))
 
 (rule
  (alias compress)

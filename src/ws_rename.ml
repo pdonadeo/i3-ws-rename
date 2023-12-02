@@ -1,6 +1,6 @@
-open Constants
 open Utils
 
+let spf = Printf.sprintf
 let shutdown, do_shutdown = Lwt.wait ()
 
 let redirect_to_dev_null ~mode fd =
@@ -73,17 +73,13 @@ let string_of_node conf (node : I3ipc.Reply.node) =
             | Some name -> Re2.matches (Re2.create_exn name) node_name)
           app_id_records
         |> Conf.hd_opt
-        |> opt_map ~f:(fun r ->
-               let icon = r.Conf.fa_icon in
-               Fa_icons.get_icon_string icon)
+        |> opt_map ~f:(fun r -> r.Conf.icon)
         |> opt_def ~def:"�"
       end
       | None -> begin
         List.filter (fun r -> r.Conf.name = None) app_id_records
         |> Conf.hd_opt
-        |> opt_map ~f:(fun r ->
-               let icon = r.Conf.fa_icon in
-               Fa_icons.get_icon_string icon)
+        |> opt_map ~f:(fun r -> r.Conf.icon)
         |> opt_def ~def:"�"
       end
     end

@@ -1,7 +1,7 @@
 open Utils
 
 type icon_conf_record = {
-  fa_icon : string;
+  icon : string;
   window_class : string option; [@default None]
   window_instance : string option; [@default None]
   app_id : string option; [@default None]
@@ -16,7 +16,7 @@ let default_configuration = []
 
 let record_lowercase r =
   {
-    fa_icon = String.lowercase_ascii r.fa_icon;
+    icon = r.icon;
     window_class = opt_map r.window_class ~f:String.lowercase_ascii;
     window_instance = opt_map r.window_instance ~f:String.lowercase_ascii;
     app_id = opt_map r.app_id ~f:String.lowercase_ascii;
@@ -35,20 +35,12 @@ let hd_opt xs =
 let search_class conf class_ =
   let class_ = String.lowercase_ascii class_ in
   Logs.debug (fun m -> m "search_class %s" class_);
-  List.filter (fun record -> record.window_class = Some class_) conf
-  |> hd_opt
-  |> opt_map ~f:(fun r ->
-         let icon = r.fa_icon in
-         Fa_icons.get_icon_string icon)
+  List.filter (fun record -> record.window_class = Some class_) conf |> hd_opt |> opt_map ~f:(fun r -> r.icon)
 
 let search_instance conf instance =
   let instance = String.lowercase_ascii instance in
   Logs.debug (fun m -> m "search_instance %s" instance);
-  List.filter (fun record -> record.window_instance = Some instance) conf
-  |> hd_opt
-  |> opt_map ~f:(fun r ->
-         let icon = r.fa_icon in
-         Fa_icons.get_icon_string icon)
+  List.filter (fun record -> record.window_instance = Some instance) conf |> hd_opt |> opt_map ~f:(fun r -> r.icon)
 
 let search_class_instance conf class_ instance =
   let class_ = String.lowercase_ascii class_ in
@@ -65,6 +57,4 @@ let search_class_instance conf class_ instance =
          then Str.string_match (Str.regexp window_instance) instance 0
          else record.window_instance = Some instance)
   |> hd_opt
-  |> opt_map ~f:(fun r ->
-         let icon = r.fa_icon in
-         Fa_icons.get_icon_string icon)
+  |> opt_map ~f:(fun r -> r.icon)
