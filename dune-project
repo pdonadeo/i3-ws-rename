@@ -2,7 +2,7 @@
 
 (name ws-rename)
 
-(version 15)
+(version 16)
 
 (generate_opam_files true)
 

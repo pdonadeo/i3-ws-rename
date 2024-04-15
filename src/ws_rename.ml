@@ -192,7 +192,7 @@ let rec loop conf conn =
       | _ -> Lwt.return ()
     in
     Gc.compact ();
-    Malloc.malloc_trim 0;
+    let _ignored_bool = Malloc.malloc_trim 0 in
     loop conf conn
   end
   | `Shutdown -> begin
