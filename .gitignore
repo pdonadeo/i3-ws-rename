@@ -34,5 +34,3 @@ i3-ws-rename.install
 
 # Working stuff
 script.ml
-
-*.code-workspace
