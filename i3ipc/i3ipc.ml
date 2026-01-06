@@ -3,7 +3,7 @@ module Json = Yojson.Safe
 
 [@@@warning "-32"]
 
-let (|?) o x =
+let ( |? ) o x =
   match o with
   | None -> x
   | Some y -> y
@@ -21,45 +21,45 @@ exception Protocol_error of protocol_error
 (******************************************************************************)
 
 module Reply = struct
-
   type command_outcome = {
-    success: bool;
-    error: (string option [@default None]);
-  } [@@deriving of_yojson { strict = false }, show]
+    success : bool;
+    error : (string option[@default None]);
+  }
+  [@@deriving of_yojson { strict = false }, show]
 
-  type command_outcome_list =
-    command_outcome list [@@deriving of_yojson, show]
+  type command_outcome_list = command_outcome list [@@deriving of_yojson, show]
 
   type rect = {
-    x: int;
-    y: int;
-    width: int;
-    height: int;
-  } [@@deriving of_yojson { strict = false }, show]
+    x : int;
+    y : int;
+    width : int;
+    height : int;
+  }
+  [@@deriving of_yojson { strict = false }, show]
 
   type workspace = {
-    num: int;
-    name: string;
-    visible: bool;
-    focused: bool;
-    urgent: bool;
-    rect: rect;
-    output: string;
-  } [@@deriving of_yojson { strict = false }, show]
+    num : int;
+    name : string;
+    visible : bool;
+    focused : bool;
+    urgent : bool;
+    rect : rect;
+    output : string;
+  }
+  [@@deriving of_yojson { strict = false }, show]
 
-  type workspace_list =
-    workspace list [@@deriving of_yojson]
+  type workspace_list = workspace list [@@deriving of_yojson]
 
   type output = {
-    name: string;
-    active: bool;
-    primary: bool;
-    current_workspace: string option [@default None];
-    rect: rect;
-  } [@@deriving of_yojson { strict = false }, show]
+    name : string;
+    active : bool;
+    primary : bool;
+    current_workspace : string option; [@default None]
+    rect : rect;
+  }
+  [@@deriving of_yojson { strict = false }, show]
 
-  type output_list =
-    output list [@@deriving of_yojson, show]
+  type output_list = output list [@@deriving of_yojson, show]
 
   type node_type =
     | Root
@@ -122,12 +122,13 @@ module Reply = struct
   type x11_window_id = int [@@deriving of_yojson, show]
 
   type window_properties = {
-    class_: string option [@key "class"] [@default None];
-    instance: string option [@default None];
-    title: string option [@default None];
-    transient_for: x11_window_id option [@default None];
-    window_role: string option [@default None];
-  } [@@deriving of_yojson { strict = false }, show]
+    class_ : string option; [@key "class"] [@default None]
+    instance : string option; [@default None]
+    title : string option; [@default None]
+    transient_for : x11_window_id option; [@default None]
+    window_role : string option; [@default None]
+  }
+  [@@deriving of_yojson { strict = false }, show]
 
   type node_id = string
 
@@ -135,7 +136,7 @@ module Reply = struct
     match id_j with
     | `Int i -> Result.Ok (string_of_int i)
     | `Intlit s -> Result.Ok s
-    | _ -> Result.Error ("not an integer literal: "^(Yojson.Safe.to_string id_j))
+    | _ -> Result.Error ("not an integer literal: " ^ Yojson.Safe.to_string id_j)
 
   let pp_node_id fmt i = Format.pp_print_string fmt i
 
@@ -152,32 +153,32 @@ module Reply = struct
     | j -> Result.Error ("Reply.fullscreen_mode_of_yojson: " ^ Json.to_string j)
 
   type node = {
-    nodes : (node list [@default []]);
-    floating_nodes: (node list [@default []]);
-    id: node_id;
-    name: string option [@default None];
-    num: int option [@default None];
-    nodetype: node_type [@key "type"];
-    border: node_border;
-    current_border_width: int;
-    layout: node_layout;
-    percent: float option [@default None];
-    rect: rect;
-    window_rect: rect;
-    deco_rect: rect;
-    geometry: rect;
-    window: x11_window_id option [@default None];
-    window_properties: window_properties option [@default None];
-    urgent: bool;
-    focused: bool;
-    focus: node_id list;
-    fullscreen_mode: fullscreen_mode;    
-    app_id: string option [@default None];
-  } [@@deriving of_yojson { strict = false }, show]
+    nodes : (node list[@default []]);
+    floating_nodes : (node list[@default []]);
+    id : node_id;
+    name : string option; [@default None]
+    num : int option; [@default None]
+    nodetype : node_type; [@key "type"]
+    border : node_border;
+    current_border_width : int;
+    layout : node_layout;
+    percent : float option; [@default None]
+    rect : rect;
+    window_rect : rect;
+    deco_rect : rect;
+    geometry : rect;
+    window : x11_window_id option; [@default None]
+    window_properties : window_properties option; [@default None]
+    urgent : bool;
+    focused : bool;
+    focus : node_id list;
+    fullscreen_mode : fullscreen_mode;
+    app_id : string option; [@default None]
+  }
+  [@@deriving of_yojson { strict = false }, show]
 
   type mark = string [@@deriving yojson, show]
   type mark_list = mark list [@@deriving yojson, show]
-
   type bar_id = string [@@deriving yojson, show]
   type bar_id_list = bar_id list [@@deriving yojson, show]
 
@@ -207,9 +208,10 @@ module Reply = struct
   [@@deriving show]
 
   module Bar_parts_map = Map.Make (struct
-      type t = colorable_bar_part
-      let compare = compare
-    end)
+    type t = colorable_bar_part
+
+    let compare = compare
+  end)
 
   type bar_colors = string Bar_parts_map.t
 
@@ -218,14 +220,14 @@ module Reply = struct
     let first = ref true in
     Bar_parts_map.iter
       (fun k v ->
-         if !first then first := false
-         else (
-           Format.pp_print_string fmt "; ";
-           Format.pp_print_cut fmt ()
-         );
-         pp_colorable_bar_part fmt k;
-         Format.pp_print_string fmt ":";
-         Format.pp_print_string fmt v)
+        if !first
+        then first := false
+        else (
+          Format.pp_print_string fmt "; ";
+          Format.pp_print_cut fmt ());
+        pp_colorable_bar_part fmt k;
+        Format.pp_print_string fmt ":";
+        Format.pp_print_string fmt v)
       colors;
     Format.pp_print_string fmt "}"
 
@@ -254,60 +256,51 @@ module Reply = struct
     | s -> Undocumented s
 
   let bar_colors_of_yojson = function
-    | `Assoc l as j ->
-      begin try
-          Result.Ok (
-            List.fold_left (fun m (k, v) ->
-              match v with
-              | `String s ->
-                Bar_parts_map.add
-                  (colorable_bar_part_of_string k) s
-                  m
-              | _ -> raise Exit
-            ) Bar_parts_map.empty l
-          )
-        with Exit ->
-          Result.Error ("Reply.bar_colors_of_yojson: " ^ Json.to_string j)
-      end
+    | `Assoc l as j -> begin
+      try
+        Result.Ok
+          (List.fold_left
+             (fun m (k, v) ->
+               match v with
+               | `String s -> Bar_parts_map.add (colorable_bar_part_of_string k) s m
+               | _ -> raise Exit)
+             Bar_parts_map.empty
+             l)
+      with Exit -> Result.Error ("Reply.bar_colors_of_yojson: " ^ Json.to_string j)
+    end
     | j -> Result.Error ("Reply.bar_colors_of_yojson: " ^ Json.to_string j)
 
   type bar_config = {
-    id: string;
-    mode: string;
-    position: string;
-    status_command: string;
-    font: string;
-    workspace_buttons: bool;
-    binding_mode_indicator: bool;
-    verbose: bool;
-    colors: bar_colors;
-  } [@@deriving of_yojson { strict = false }, show]
+    id : string;
+    mode : string;
+    position : string;
+    status_command : string;
+    font : string;
+    workspace_buttons : bool;
+    binding_mode_indicator : bool;
+    verbose : bool;
+    colors : bar_colors;
+  }
+  [@@deriving of_yojson { strict = false }, show]
 
   type version = {
-    major: int;
-    minor: int;
-    patch: int;
-    human_readable: string;
-    loaded_config_file_name: string;
-  } [@@deriving of_yojson { strict = false }, show]
+    major : int;
+    minor : int;
+    patch : int;
+    human_readable : string;
+    loaded_config_file_name : string;
+  }
+  [@@deriving of_yojson { strict = false }, show]
 
   let handle_error = function
     | Result.Ok x -> x
     | Result.Error s -> raise (Protocol_error (Bad_reply s))
 
-  let result_of_command_outcome { success; error } =
-    if success then Result.Ok () else Result.Error (error |? "")
+  let result_of_command_outcome { success; error } = if success then Result.Ok () else Result.Error (error |? "")
 
-  type binding_modes = string list
-    [@@deriving of_yojson, show]
-
-  type config = {
-    config : string
-  } [@@deriving of_yojson { strict = false }, show]
-
-  type tick = {
-    tick_success : bool [@key "success"]
-  } [@@deriving of_yojson, show]
+  type binding_modes = string list [@@deriving of_yojson, show]
+  type config = { config : string } [@@deriving of_yojson { strict = false }, show]
+  type tick = { tick_success : bool [@key "success"] } [@@deriving of_yojson, show]
 end
 
 (******************************************************************************)
@@ -336,27 +329,25 @@ module Event = struct
     | j -> Result.Error ("Event.workspace_change_of_yojson: " ^ Json.to_string j)
 
   type workspace_event_info = {
-    change: workspace_change;
-    current: Reply.node option [@default None];
-    old: Reply.node option [@default None];
-  } [@@deriving of_yojson { strict = false }, show]
+    change : workspace_change;
+    current : Reply.node option; [@default None]
+    old : Reply.node option; [@default None]
+  }
+  [@@deriving of_yojson { strict = false }, show]
 
-  type output_change =
-    | Unspecified
-  [@@deriving show]
+  type output_change = Unspecified [@@deriving show]
 
   let output_change_of_yojson = function
     | `String "unspecified" -> Result.Ok Unspecified
     | j -> Result.Error ("Event.output_change_of_yojson: " ^ Json.to_string j)
 
-  type output_event_info = {
-    change: output_change;
-  } [@@deriving of_yojson { strict = false }, show]
+  type output_event_info = { change : output_change } [@@deriving of_yojson { strict = false }, show]
 
   type mode_event_info = {
-    change: string;
-    pango_markup: bool;
-  } [@@deriving of_yojson { strict = false }, show]
+    change : string;
+    pango_markup : bool;
+  }
+  [@@deriving of_yojson { strict = false }, show]
 
   type window_change =
     | New
@@ -383,17 +374,13 @@ module Event = struct
     | j -> Result.Error ("Event.window_change_of_yojson: " ^ Json.to_string j)
 
   type window_event_info = {
-    change: window_change;
-    container: Reply.node;
-  } [@@deriving of_yojson { strict = false }, show]
+    change : window_change;
+    container : Reply.node;
+  }
+  [@@deriving of_yojson { strict = false }, show]
 
-  type bar_config_event_info = {
-    bar_config: Reply.bar_config;
-  } [@@deriving of_yojson { strict = false }, show]
-
-  type binding_change =
-    | Run
-  [@@deriving show]
+  type bar_config_event_info = { bar_config : Reply.bar_config } [@@deriving of_yojson { strict = false }, show]
+  type binding_change = Run [@@deriving show]
 
   let binding_change_of_yojson = function
     | `String "run" -> Result.Ok Run
@@ -410,32 +397,33 @@ module Event = struct
     | j -> Result.Error ("Event.input_type_of_yojson: " ^ Json.to_string j)
 
   type binding = {
-    command: string;
-    event_state_mask: string list;
-    input_code: int;
-    mods: string list option [@default None];
-    symbol: string option [@default None];
-    input_type: input_type;
-  } [@@deriving of_yojson { strict = false }, show]
+    command : string;
+    event_state_mask : string list;
+    input_code : int;
+    mods : string list option; [@default None]
+    symbol : string option; [@default None]
+    input_type : input_type;
+  }
+  [@@deriving of_yojson { strict = false }, show]
 
   type binding_event_info = {
-    change: binding_change;
-    binding: binding;
-  } [@@deriving of_yojson { strict = false }, show]
+    change : binding_change;
+    binding : binding;
+  }
+  [@@deriving of_yojson { strict = false }, show]
 
   type shutdown_reason =
     | Restart
     | Exit
   [@@deriving show]
 
-  type shutdown_event_info = {
-    change : string
-  } [@@deriving of_yojson, show]
+  type shutdown_event_info = { change : string } [@@deriving of_yojson, show]
 
   type tick_event_info = {
     first : bool;
-    payload : string
-  } [@@deriving of_yojson { strict = false }, show]
+    payload : string;
+  }
+  [@@deriving of_yojson { strict = false }, show]
 
   type t =
     | Workspace of workspace_event_info
@@ -459,7 +447,8 @@ type connection = {
 
 let connect () =
   try%lwt
-    let%lwt socketpath = match Sys.getenv "I3SOCK" with
+    let%lwt socketpath =
+      match Sys.getenv "I3SOCK" with
       | exception Not_found -> Lwt_process.pread ("i3", [|"i3"; "--get-socketpath"|])
       | s -> Lwt.return s
     in
@@ -469,9 +458,7 @@ let connect () =
     Lwt.return { fd; replies = []; events = [] }
   with _ -> raise (Protocol_error No_IPC_socket)
 
-let disconnect conn =
-  Lwt_unix.close conn.fd
-
+let disconnect conn = Lwt_unix.close conn.fd
 let magic_bytes = Bytes.of_string "i3-ipc"
 
 let int32_of_bytes =
@@ -485,36 +472,35 @@ let int32_to_bytes =
   | Lwt_sys.Big_endian -> Uint32.to_bytes_big_endian
 
 let rec bytes_eq ~pos ~len b1 b2 =
-  if len = 0 then true
-  else if Bytes.get b1 pos <> Bytes.get b2 pos then false
+  if len = 0
+  then true
+  else if Bytes.get b1 pos <> Bytes.get b2 pos
+  then false
   else bytes_eq ~pos:(pos + 1) ~len:(len - 1) b1 b2
 
 let rec read fd buf ~pos ~len =
   let%lwt n = Lwt_unix.read fd buf pos len in
-  if n < len then (
+  if n < len
+  then (
     if n = 0 then raise (Protocol_error Unexpected_eof);
-    read fd buf ~pos:(pos + n) ~len:(len - n)
- ) else
-    Lwt.return ()
+    read fd buf ~pos:(pos + n) ~len:(len - n))
+  else Lwt.return ()
 
 let rec write fd buf ~pos ~len =
   let%lwt n = Lwt_unix.write fd buf pos len in
-  if n < len then
-    write fd buf ~pos:(pos + n) ~len:(len - n)
-  else
-    Lwt.return ()
+  if n < len then write fd buf ~pos:(pos + n) ~len:(len - n) else Lwt.return ()
 
 let read_raw_msg conn =
   let header = Bytes.create (6 (* magic *) + 4 (* len *) + 4 (* ty *)) in
   let%lwt () = read conn.fd header ~pos:0 ~len:6 in
-  if not (bytes_eq ~pos:0 ~len:6 header magic_bytes) then
-    raise (Protocol_error (Bad_magic_string (StdLabels.Bytes.(to_string @@ sub ~pos:0 ~len:6 header))));
+  if not (bytes_eq ~pos:0 ~len:6 header magic_bytes)
+  then raise (Protocol_error (Bad_magic_string StdLabels.Bytes.(to_string @@ sub ~pos:0 ~len:6 header)));
   let%lwt () = read conn.fd header ~pos:6 ~len:4 in
   let%lwt () = read conn.fd header ~pos:10 ~len:4 in
   let len = int32_of_bytes header 6 |> Uint32.to_int in
   let ty = int32_of_bytes header 10 in
   let payload = Bytes.create len in
-  let%lwt () = read conn.fd payload ~pos:0 ~len:len in
+  let%lwt () = read conn.fd payload ~pos:0 ~len in
   Lwt.return (ty, Bytes.to_string payload)
 
 let write_raw_msg conn (ty, payload) =
@@ -532,16 +518,15 @@ let event_bit = Uint32.(shift_left one 31)
 let ty_mask = Uint32.(lognot event_bit)
 
 let read_next_message conn =
-  let%lwt (ty, msg) = read_raw_msg conn in
-  (if Uint32.(logand ty event_bit <> zero) then
-     conn.events <- (ty, msg) :: conn.events
-   else
-     conn.replies <- (ty, msg) :: conn.replies);
+  let%lwt ty, msg = read_raw_msg conn in
+  if Uint32.(logand ty event_bit <> zero)
+  then conn.events <- (ty, msg) :: conn.events
+  else conn.replies <- (ty, msg) :: conn.replies;
   Lwt.return ()
 
 let rec next_raw_event conn =
   match conn.events with
-  | e::es ->
+  | e :: es ->
     conn.events <- es;
     Lwt.return e
   | [] ->
@@ -551,11 +536,13 @@ let rec next_raw_event conn =
 let rec next_reply conn p =
   let rec take_first p = function
     | [] -> None
-    | x :: xs ->
-      if p x then Some (x, xs)
-      else match take_first p xs with
+    | x :: xs -> (
+      if p x
+      then Some (x, xs)
+      else
+        match take_first p xs with
         | None -> None
-        | Some (y, ys) -> Some (y, x :: ys)
+        | Some (y, ys) -> Some (y, x :: ys))
   in
   match take_first p conn.replies with
   | Some (r, rs) ->
@@ -565,12 +552,11 @@ let rec next_reply conn p =
     let%lwt () = read_next_message conn in
     next_reply conn p
 
-let next_reply_with_ty conn ty =
-  next_reply conn (fun (ty', _) -> ty = ty')
+let next_reply_with_ty conn ty = next_reply conn (fun (ty', _) -> ty = ty')
 
 let send_cmd_with_ty conn ty payload =
   let%lwt () = write_raw_msg conn (ty, payload) in
-  let%lwt (_, r) = next_reply_with_ty conn ty in
+  let%lwt _, r = next_reply_with_ty conn ty in
   Lwt.return r
 
 (******************************************************************************)
@@ -593,82 +579,49 @@ let ignore_error = function
 
 let handle_reply r of_yojson =
   let%lwt s = r in
-  Json.from_string s
-  |> of_yojson
-  |> ignore_error
-  |> Lwt.return
+  Json.from_string s |> of_yojson |> ignore_error |> Lwt.return
 
-let command conn c =
-  handle_reply
-    (send_cmd_with_ty conn command_ty c)
-    Reply.command_outcome_list_of_yojson
-
-let get_workspaces conn =
-  handle_reply
-    (send_cmd_with_ty conn workspaces_ty "")
-    Reply.workspace_list_of_yojson
-
-let get_outputs conn =
-  handle_reply
-    (send_cmd_with_ty conn outputs_ty "")
-    Reply.output_list_of_yojson
-
-let get_tree conn =
-  handle_reply
-    (send_cmd_with_ty conn tree_ty "")
-    Reply.node_of_yojson
-
-let get_marks conn =
-  handle_reply
-    (send_cmd_with_ty conn marks_ty "")
-    Reply.mark_list_of_yojson
+let command conn c = handle_reply (send_cmd_with_ty conn command_ty c) Reply.command_outcome_list_of_yojson
+let get_workspaces conn = handle_reply (send_cmd_with_ty conn workspaces_ty "") Reply.workspace_list_of_yojson
+let get_outputs conn = handle_reply (send_cmd_with_ty conn outputs_ty "") Reply.output_list_of_yojson
+let get_tree conn = handle_reply (send_cmd_with_ty conn tree_ty "") Reply.node_of_yojson
+let get_marks conn = handle_reply (send_cmd_with_ty conn marks_ty "") Reply.mark_list_of_yojson
 
 let get_bar_ids conn =
   let%lwt () = write_raw_msg conn (bar_config_ty, "") in
-  let%lwt (_, r) = next_reply conn
-      (fun (ty, raw) ->
-         ty = bar_config_ty &&
-         (match Json.from_string raw with
-          | `List _ -> true
-          | _ -> false
-          | exception _ -> false))
+  let%lwt _, r =
+    next_reply conn (fun (ty, raw) ->
+        ty = bar_config_ty
+        &&
+        match Json.from_string raw with
+        | `List _ -> true
+        | _ -> false
+        | exception _ -> false)
   in
   handle_reply (Lwt.return r) Reply.bar_id_list_of_yojson
 
 let get_bar_config conn bar_id =
   let%lwt () = write_raw_msg conn (bar_config_ty, bar_id) in
-  let%lwt (_, r) = next_reply conn
-      (fun (ty, raw) ->
-         ty = bar_config_ty &&
-         (match Json.from_string raw with
-          | `Assoc _ -> true
-          | _ -> false
-          | exception _ -> false))
+  let%lwt _, r =
+    next_reply conn (fun (ty, raw) ->
+        ty = bar_config_ty
+        &&
+        match Json.from_string raw with
+        | `Assoc _ -> true
+        | _ -> false
+        | exception _ -> false)
   in
   handle_reply (Lwt.return r) Reply.bar_config_of_yojson
 
-let get_version conn =
-  handle_reply
-    (send_cmd_with_ty conn version_ty "")
-    Reply.version_of_yojson
-
-let get_binding_modes conn =
-  handle_reply
-    (send_cmd_with_ty conn binding_modes_ty "")
-    Reply.binding_modes_of_yojson
+let get_version conn = handle_reply (send_cmd_with_ty conn version_ty "") Reply.version_of_yojson
+let get_binding_modes conn = handle_reply (send_cmd_with_ty conn binding_modes_ty "") Reply.binding_modes_of_yojson
 
 let get_config conn =
-  let%lwt protocol_reply =
-    handle_reply
-      (send_cmd_with_ty conn config_ty "")
-      Reply.config_of_yojson in
+  let%lwt protocol_reply = handle_reply (send_cmd_with_ty conn config_ty "") Reply.config_of_yojson in
   Lwt.return protocol_reply
 
 let send_tick conn payload =
-  let%lwt protocol_reply =
-    handle_reply
-      (send_cmd_with_ty conn send_tick_ty payload)
-      Reply.tick_of_yojson in
+  let%lwt protocol_reply = handle_reply (send_cmd_with_ty conn send_tick_ty payload) Reply.tick_of_yojson in
   Lwt.return protocol_reply.Reply.tick_success
 
 (******************************************************************************)
@@ -693,14 +646,11 @@ let subscription_to_yojson = function
   | Shutdown -> `String "shutdown"
   | Tick -> `String "tick"
 
-type subscription_list =
-  subscription list [@@deriving to_yojson]
+type subscription_list = subscription list [@@deriving to_yojson]
 
 let subscribe conn subs =
   let subs_bytes = Json.to_string (subscription_list_to_yojson subs) in
-  handle_reply
-    (send_cmd_with_ty conn subscribe_ty subs_bytes)
-    Reply.command_outcome_of_yojson
+  handle_reply (send_cmd_with_ty conn subscribe_ty subs_bytes) Reply.command_outcome_of_yojson
 
 (******************************************************************************)
 
@@ -713,14 +663,13 @@ let event_of_raw_event (ty, payload) =
   | 3 -> Event.Window (Event.window_event_info_of_yojson j |> ignore_error)
   | 4 -> Event.BarConfig (Event.bar_config_event_info_of_yojson j |> ignore_error)
   | 5 -> Event.Binding (Event.binding_event_info_of_yojson j |> ignore_error)
-  | 6 -> Event.Shutdown (
-    let shutdown_event_info =
-      Event.shutdown_event_info_of_yojson j |> ignore_error in
-    match shutdown_event_info.Event.change with
-    | "restart" -> Restart
-    | "exit" -> Exit
-    | v -> raise (Protocol_error (Bad_reply v))
-  )
+  | 6 ->
+    Event.Shutdown
+      (let shutdown_event_info = Event.shutdown_event_info_of_yojson j |> ignore_error in
+       match shutdown_event_info.Event.change with
+       | "restart" -> Restart
+       | "exit" -> Exit
+       | v -> raise (Protocol_error (Bad_reply v)))
   | 7 -> Event.Tick (Event.tick_event_info_of_yojson j |> ignore_error)
   | _ -> raise (Protocol_error (Unknown_type ty))
 
