@@ -128,10 +128,11 @@ let rename_workspace conf conn ws =
 
   Format.fprintf Format.str_formatter "%a" Reply.pp_node ws;
   let ws_str = Format.flush_str_formatter () in
-  Logs.err (fun m -> m "NODE: %s" ws_str);
 
   Logs.debug (fun m -> m "====================================================");
   Logs.debug (fun m -> m "WORKSPACE NUMBER %d (%s)" ws_num ws_name);
+  Logs.debug (fun m -> m "WORKSPACE: %s" ws_str);
+
   let leaves = extract_leaves ws in
   List.iter (fun (leaf : node) -> Logs.debug (fun m -> m "    %s; %s" leaf.id (opt_def ~def:"N/A" leaf.name))) leaves;
   let new_name = leaves |> List.map (string_of_node conf) |> remove_dups |> String.concat "|" in
