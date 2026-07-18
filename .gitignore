@@ -1,36 +1,27 @@
-*.annot
-*.cmo
-*.cma
-*.cmi
-*.a
-*.o
-*.cmx
-*.cmxs
-*.cmxa
+# Compiled binaries
+/ws-rename
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
 
-# ocamlbuild working directory
-_build/
-_opam/
+# Test binary, built with `go test -c`
+*.test
 
-# ocamlbuild targets
-*.byte
-*.native
+# Output of the go coverage tool
+*.out
+coverage.txt
 
-# oasis generated files
-setup.data
-setup.log
+# Dependency directories
+vendor/
 
-# Merlin configuring file for Vim and Emacs
-.merlin
+# Go workspace file
+go.work
+go.work.sum
 
-# Vim
-Session.vim
-
-# Work stuff
-contrib
-
-# Dune install file
-i3-ws-rename.install
-
-# Working stuff
-script.ml
+# Environment / editor files
+.env
+.idea/
+.vscode/
+*.swp
