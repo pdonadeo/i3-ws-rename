@@ -96,17 +96,6 @@ func daemonize(wd string) {
 	null := devNull.Fd()
 
 	env := append(os.Environ(), daemonEnvVar+"=1")
-	pid, _, errno := syscall.RawSyscall(syscall.SYS_FORK, 0, 0, 0)
-	if errno != 0 {
-		fmt.Fprintf(os.Stderr, "daemonize: fork: %v\n", errno)
-		os.Exit(1)
-	}
-	if pid != 0 {
-		os.Exit(0) // parent exits
-	}
-	// child: become session leader (ignore error, mirrors OCaml's `ignore (Unix.setsid ())`)
-	_, _ = syscall.Setsid()
-
 	_, err = syscall.ForkExec(exe, os.Args, &syscall.ProcAttr{
 		Dir:   wd,
 		Env:   env,
