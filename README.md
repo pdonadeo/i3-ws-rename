@@ -116,7 +116,6 @@ same directories searched for `app-icons.json`. One rule per line, split on the
 first `=`; blank lines and lines starting with `#` are ignored:
 
 ```
-Contatore Sigarette — Mozilla Firefox=floating enable, resize set 558 px 484 px, move position center
 .*\| Brilliant — Mozilla Firefox=move container to workspace number 5, workspace number 5
 ```
 
