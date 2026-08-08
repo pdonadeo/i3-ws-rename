@@ -116,8 +116,5 @@ func getDefaultConfFname(fname string) string {
 	if p := tryPath(filepath.Join(home, ".config", "sway", fname)); p != "" {
 		return p
 	}
-	if p := tryPath(filepath.Join(home, ".i3", fname)); p != "" {
-		return p
-	}
 	return ""
 }

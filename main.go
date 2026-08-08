@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"flag"
 	"fmt"
 	"log/slog"
@@ -9,15 +8,10 @@ import (
 	"os/signal"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 )
-
-// fallbackIcon is shown when no config entry matches a window.
-const fallbackIcon = "▨"
 
 // version is set at build time via -ldflags "-X main.version=...".
 var version = "dev"
@@ -25,60 +19,6 @@ var version = "dev"
 // daemonEnvVar is set in the environment of the re-exec'd daemon child so it
 // knows not to daemonize again.
 const daemonEnvVar = "_WS_RENAME_DAEMON"
-
-// ── Logging ──────────────────────────────────────────────────────────────────
-
-type fileHandler struct {
-	mu    sync.Mutex
-	file  *os.File
-	level slog.Level
-}
-
-func newFileHandler(path string, level slog.Level) (*fileHandler, error) {
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0o644)
-	if err != nil {
-		return nil, err
-	}
-	return &fileHandler{file: f, level: level}, nil
-}
-
-func (h *fileHandler) Enabled(_ context.Context, l slog.Level) bool { return l >= h.level }
-func (h *fileHandler) WithAttrs(_ []slog.Attr) slog.Handler         { return h }
-func (h *fileHandler) WithGroup(_ string) slog.Handler              { return h }
-
-func (h *fileHandler) Handle(_ context.Context, r slog.Record) error {
-	t := r.Time
-	ts := fmt.Sprintf("%04d-%02d-%02d %02d:%02d:%02d.%03d",
-		t.Year(), t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second(),
-		t.Nanosecond()/1e6)
-
-	levelStr := "[INFO]"
-	switch {
-	case r.Level >= slog.LevelError:
-		levelStr = "[ERROR]"
-	case r.Level >= slog.LevelWarn:
-		levelStr = "[WARNING]"
-	case r.Level < slog.LevelInfo:
-		levelStr = "[DEBUG]"
-	}
-
-	var attrs []string
-	r.Attrs(func(a slog.Attr) bool {
-		attrs = append(attrs, fmt.Sprintf("%s=%v", a.Key, a.Value.Any()))
-		return true
-	})
-
-	line := fmt.Sprintf("%s %s %s", ts, levelStr, r.Message)
-	if len(attrs) > 0 {
-		line += " " + strings.Join(attrs, " ")
-	}
-	line += "\n"
-
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	_, err := h.file.WriteString(line)
-	return err
-}
 
 // ── Daemonization ─────────────────────────────────────────────────────────────
 
@@ -109,182 +49,11 @@ func daemonize(wd string) {
 	os.Exit(0)
 }
 
-// ── Tree traversal ────────────────────────────────────────────────────────────
-
-func traverseDeepFirst(f func(n *Node, parent *Node, depth int), n *Node, parent *Node, depth int) {
-	f(n, parent, depth)
-	for i := range n.Nodes {
-		traverseDeepFirst(f, &n.Nodes[i], n, depth+1)
-	}
-	for i := range n.FloatingNodes {
-		traverseDeepFirst(f, &n.FloatingNodes[i], n, depth+1)
-	}
-}
-
-func getWorkspaceNodes(root *Node) []*Node {
-	var ws []*Node
-	traverseDeepFirst(func(n *Node, _ *Node, _ int) {
-		if n.NodeType == "workspace" && n.Num != nil && *n.Num > 0 {
-			ws = append(ws, n)
-		}
-	}, root, nil, 0)
-	return ws
-}
-
-func extractLeaves(root *Node) []*Node {
-	var leaves []*Node
-	traverseDeepFirst(func(n *Node, _ *Node, _ int) {
-		if len(n.Nodes) == 0 && len(n.FloatingNodes) == 0 && n.NodeType != "workspace" {
-			leaves = append(leaves, n)
-		}
-	}, root, nil, 0)
-	return leaves
-}
-
-// ── Icon resolution ───────────────────────────────────────────────────────────
-
-func stringOfNode(conf []IconConf, n *Node) string {
-	if n.WindowProps == nil {
-		// Wayland / Sway path: match by app_id + optional name regex
-		if n.AppID == nil {
-			return fallbackIcon
-		}
-		appID := strings.ToLower(*n.AppID)
-		var byAppID []IconConf
-		for _, r := range conf {
-			if r.AppID != nil && *r.AppID == appID {
-				byAppID = append(byAppID, r)
-			}
-		}
-		if n.Name != nil {
-			nodeName := strings.ToLower(*n.Name)
-			// Take first record where name is nil (matches any) or regex matches.
-			for _, r := range byAppID {
-				if r.Name == nil {
-					return r.Icon
-				}
-				re, err := regexp.Compile(*r.Name)
-				if err == nil && re.MatchString(nodeName) {
-					return r.Icon
-				}
-			}
-			return fallbackIcon
-		}
-		for _, r := range byAppID {
-			if r.Name == nil {
-				return r.Icon
-			}
-		}
-		return fallbackIcon
-	}
-
-	// X11 / i3 path: match by window class and/or instance
-	wp := n.WindowProps
-	switch {
-	case wp.Class_ == nil && wp.Instance == nil:
-		return fallbackIcon
-	case wp.Class_ == nil:
-		if icon := searchInstance(conf, *wp.Instance); icon != nil {
-			return *icon
-		}
-		return strings.ToLower(*wp.Instance)
-	case wp.Instance == nil:
-		if icon := searchClass(conf, *wp.Class_); icon != nil {
-			return *icon
-		}
-		return strings.ToLower(*wp.Class_)
-	default:
-		if icon := searchClassInstance(conf, *wp.Class_, *wp.Instance); icon != nil {
-			return *icon
-		}
-		if icon := searchClass(conf, *wp.Class_); icon != nil {
-			return *icon
-		}
-		return strings.ToLower(*wp.Class_)
-	}
-}
-
-// removeDups removes consecutive duplicates (mirrors OCaml remove_dups).
-func removeDups(xs []string) []string {
-	if len(xs) == 0 {
-		return xs
-	}
-	out := []string{xs[0]}
-	for _, x := range xs[1:] {
-		if x != out[len(out)-1] {
-			out = append(out, x)
-		}
-	}
-	return out
-}
-
-// ── Workspace renaming ────────────────────────────────────────────────────────
-
-func renameWorkspace(conf []IconConf, conn *Conn, ws *Node, log *slog.Logger) error {
-	wsName := "N/A"
-	if ws.Name != nil {
-		wsName = *ws.Name
-	}
-	wsNum := 0
-	if ws.Num != nil {
-		wsNum = *ws.Num
-	}
-
-	leaves := extractLeaves(ws)
-	icons := make([]string, len(leaves))
-	for i, leaf := range leaves {
-		icons[i] = stringOfNode(conf, leaf)
-	}
-	icons = removeDups(icons)
-
-	newName := strings.Join(icons, "|")
-	if newName == "" {
-		newName = strconv.Itoa(wsNum)
-	} else {
-		newName = fmt.Sprintf("%d:%s", wsNum, newName)
-	}
-
-	if wsName == newName {
-		return nil
-	}
-
-	cmd := fmt.Sprintf(`rename workspace "%s" to "%s"`, wsName, newName)
-	log.Debug("SENDING COMMAND", "cmd", cmd)
-	outcomes, err := conn.Command(cmd)
-	if err != nil {
-		return err
-	}
-	for i, o := range outcomes {
-		errStr := ""
-		if o.Error != nil {
-			errStr = *o.Error
-		}
-		log.Debug("RESULT", "index", i+1, "success", o.Success, "error", errStr)
-	}
-	return nil
-}
-
-func handleWindowEvent(conf []IconConf, conn *Conn, info WindowEventInfo, log *slog.Logger) {
-	switch info.Change {
-	case WinNew, WinClose, WinTitle, WinMove:
-		tree, err := conn.GetTree()
-		if err != nil {
-			log.Error("get_tree failed", "error", err)
-			return
-		}
-		for _, ws := range getWorkspaceNodes(&tree) {
-			if err := renameWorkspace(conf, conn, ws, log); err != nil {
-				log.Error("rename_workspace failed", "error", err)
-			}
-		}
-	}
-}
-
 // ── Event loop ────────────────────────────────────────────────────────────────
 
 // eventLoop returns true if the caller should reconnect (Sway restart or
 // unexpected disconnect), false if it should exit cleanly.
-func eventLoop(conf []IconConf, conn *Conn, sigCh <-chan os.Signal, log *slog.Logger) bool {
+func eventLoop(disp *dispatcher, conn *Conn, sigCh <-chan os.Signal, log *slog.Logger) bool {
 	shutdownReason := ShutdownNone
 	for {
 		select {
@@ -296,7 +65,7 @@ func eventLoop(conf []IconConf, conn *Conn, sigCh <-chan os.Signal, log *slog.Lo
 			switch e := ev.(type) {
 			case WindowEvent:
 				log.Debug("EVENT", "change", e.Info.Change)
-				handleWindowEvent(conf, conn, e.Info, log)
+				disp.dispatch(conn, e.Info)
 			case ShutdownEvent:
 				shutdownReason = e.Reason
 				if e.Reason == ShutdownExit {
@@ -312,7 +81,7 @@ func eventLoop(conf []IconConf, conn *Conn, sigCh <-chan os.Signal, log *slog.Lo
 	}
 }
 
-func protectedLoop(conf []IconConf, sigCh <-chan os.Signal, log *slog.Logger) error {
+func protectedLoop(disp *dispatcher, sigCh <-chan os.Signal, log *slog.Logger) error {
 	for {
 		conn, err := Connect()
 		if err != nil {
@@ -322,9 +91,9 @@ func protectedLoop(conf []IconConf, sigCh <-chan os.Signal, log *slog.Logger) er
 			conn.Close()
 			return fmt.Errorf("subscribe: %w", err)
 		}
-		log.Debug("connected to i3/Sway")
+		log.Debug("connected to Sway")
 
-		reconnect := eventLoop(conf, conn, sigCh, log)
+		reconnect := eventLoop(disp, conn, sigCh, log)
 		conn.Close()
 
 		if !reconnect {
@@ -349,12 +118,37 @@ func absPath(path, wd string) string {
 // "--" prefix (GNU/Go convention), never a single "-". Single-letter
 // shorthands (e.g. -c, -d) may keep a single dash.
 var longFlagNames = map[string]bool{
-	"daemon":  true,
-	"verbose": true,
-	"log":     true,
-	"conf":    true,
-	"uniq":    true,
-	"version": true,
+	"daemon":        true,
+	"verbose":       true,
+	"conf":          true,
+	"uniq":          true,
+	"version":       true,
+	"autotiling":    true,
+	"split-ratio":   true,
+	"firefox-rules": true,
+	"stderr":        true,
+}
+
+// usageWithDoubleDash returns a flag.Usage replacement that fixes up the
+// output of flag.PrintDefaults(), which always prints "-name" no matter how
+// many dashes the flag actually requires. Without this, --help contradicts
+// rejectSingleDashLongFlags by advertising forms like "-daemon" that are
+// rejected at parse time.
+func usageWithDoubleDash(longNames map[string]bool) func() {
+	names := make([]string, 0, len(longNames))
+	for n := range longNames {
+		names = append(names, regexp.QuoteMeta(n))
+	}
+	re := regexp.MustCompile(`(?m)^(  -)(` + strings.Join(names, "|") + `)(\s|$)`)
+	return func() {
+		out := flag.CommandLine.Output()
+		_, _ = fmt.Fprintf(out, "Usage of %s:\n", os.Args[0])
+		var buf strings.Builder
+		flag.CommandLine.SetOutput(&buf)
+		flag.PrintDefaults()
+		flag.CommandLine.SetOutput(out)
+		_, _ = fmt.Fprint(out, re.ReplaceAllString(buf.String(), "$1-$2$3"))
+	}
 }
 
 // rejectSingleDashLongFlags exits with an error if a multi-letter flag was
@@ -376,30 +170,44 @@ func rejectSingleDashLongFlags(args []string) {
 }
 
 func main() {
-	home, _ := os.LookupEnv("HOME")
-	defaultLog := filepath.Join(home, ".cache", "ws-rename", "log.txt")
 	defaultConf := getDefaultConfFname("app-icons.json")
+	// Empty when the file isn't there: the Firefox title rules are enabled by
+	// the presence of their config file, nothing else to switch on.
+	defaultFirefoxRules := getDefaultConfFname(firefoxTitleRulesFile)
 
 	var (
-		uniq        bool
-		daemon      bool
-		verbose     bool
-		showVersion bool
-		logFile     string
-		confFile    string
+		uniq         bool
+		daemon       bool
+		verbose      bool
+		showVersion  bool
+		autotiling   bool
+		toStderr     bool
+		splitRatio   int
+		confFile     string
+		firefoxRules string
 	)
 
 	flag.BoolVar(&uniq, "u", false, "Remove duplicate icons in case the same application")
 	flag.BoolVar(&uniq, "uniq", false, "Remove duplicate icons in case the same application")
 	flag.BoolVar(&daemon, "d", false, "Daemon mode: send the application to background")
 	flag.BoolVar(&daemon, "daemon", false, "Daemon mode: send the application to background")
-	flag.BoolVar(&verbose, "v", false, "Print debug information")
-	flag.BoolVar(&verbose, "verbose", false, "Print debug information")
-	flag.StringVar(&logFile, "l", defaultLog, "Log file path")
-	flag.StringVar(&logFile, "log", defaultLog, "Log file path")
+	flag.BoolVar(&verbose, "v", false, "Log debug information too")
+	flag.BoolVar(&verbose, "verbose", false, "Log debug information too")
 	flag.StringVar(&confFile, "c", defaultConf, "Configuration file path")
 	flag.StringVar(&confFile, "conf", defaultConf, "Configuration file path")
 	flag.BoolVar(&showVersion, "version", false, "Print version information and exit")
+	flag.BoolVar(&autotiling, "autotiling", false,
+		"Set the split direction of the focused window to match its shape")
+	flag.IntVar(&splitRatio, "split-ratio", 30,
+		"Percentage of the container given to a newly opened window, 1 to 99 "+
+			"(default 30: the existing window keeps 70%; 50 splits evenly). "+
+			"Requires --autotiling")
+	flag.StringVar(&firefoxRules, "firefox-rules", defaultFirefoxRules,
+		"Path to the Firefox title rules file (empty: feature disabled)")
+	flag.BoolVar(&toStderr, "stderr", false,
+		"Log to stderr instead of the system log")
+
+	flag.Usage = usageWithDoubleDash(longFlagNames)
 
 	rejectSingleDashLongFlags(os.Args[1:])
 	flag.Parse()
@@ -411,25 +219,25 @@ func main() {
 
 	_ = uniq // accepted but unused, like the OCaml version
 
+	if splitRatio < 1 || splitRatio > 99 {
+		fmt.Fprintf(os.Stderr,
+			"ws-rename: --split-ratio must be between 1 and 99, got %d\n", splitRatio)
+		os.Exit(2)
+	}
+
 	wd, err := os.Getwd()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "getwd: %v\n", err)
 		os.Exit(1)
 	}
 
-	logFile = absPath(logFile, wd)
-
 	if confFile != "" {
 		confFile = absPath(confFile, wd)
-		if info, err := os.Stat(confFile); err != nil || info.IsDir() {
+		info, statErr := os.Stat(confFile)
+		if statErr != nil || info.IsDir() {
 			fmt.Fprintf(os.Stderr, "ERROR: file %q does not exist or not readable.\n", confFile)
 			os.Exit(1)
 		}
-	}
-
-	if err := os.MkdirAll(filepath.Dir(logFile), 0o755); err != nil {
-		fmt.Fprintf(os.Stderr, "create log dir: %v\n", err)
-		os.Exit(1)
 	}
 
 	if daemon && os.Getenv(daemonEnvVar) == "" {
@@ -441,12 +249,8 @@ func main() {
 	if verbose {
 		level = slog.LevelDebug
 	}
-	handler, err := newFileHandler(logFile, level)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "open log file: %v\n", err)
-		os.Exit(1)
-	}
-	log := slog.New(handler)
+	log := newLogger(level, toStderr)
+	log.Info("started", "version", version, "pid", os.Getpid())
 
 	conf, err := readConf(confFile)
 	if err != nil {
@@ -457,10 +261,38 @@ func main() {
 		log.Debug("configuration loaded", "file", confFile)
 	}
 
+	// Handlers run in registration order, and the one renaming workspaces goes
+	// last on purpose: the others may move windows around, and the icons must
+	// reflect the layout as it ends up, not as it was when the event arrived.
+	var handlers []WindowHandler
+
+	if firefoxRules != "" {
+		firefoxRules = absPath(firefoxRules, wd)
+		rules, loadErr := loadFirefoxRules(firefoxRules, log)
+		switch {
+		case loadErr != nil:
+			log.Error("failed to read Firefox title rules, feature disabled",
+				"file", firefoxRules, "error", loadErr)
+		case len(rules) == 0:
+			log.Warn("no usable Firefox title rules, feature disabled", "file", firefoxRules)
+		default:
+			handlers = append(handlers, newFirefoxHandler(rules))
+			log.Info("Firefox title rules enabled", "file", firefoxRules, "rules", len(rules))
+		}
+	}
+
+	if autotiling {
+		handlers = append(handlers, newAutotileHandler(splitRatio))
+		log.Info("autotiling enabled", "split_ratio", splitRatio)
+	}
+
+	handlers = append(handlers, newIconHandler(conf))
+	disp := newDispatcher(log, handlers...)
+
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGTERM, syscall.SIGINT)
 
-	if err := protectedLoop(conf, sigCh, log); err != nil {
+	if err := protectedLoop(disp, sigCh, log); err != nil {
 		log.Error("fatal error", "error", err)
 		os.Exit(1)
 	}

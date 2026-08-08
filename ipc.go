@@ -12,6 +12,9 @@ import (
 	"sync"
 )
 
+// magicString is fixed by the wire protocol Sway implements, which it
+// inherited from i3 and kept unchanged for compatibility; it has nothing to
+// do with whether this program talks to i3 itself.
 const magicString = "i3-ipc"
 const eventBit = uint32(1 << 31)
 
@@ -21,7 +24,7 @@ const (
 	msgTree      = uint32(4)
 )
 
-// NodeID is stored as a string but arrives as an integer in i3/Sway JSON.
+// NodeID is stored as a string but arrives as an integer in Sway's JSON.
 type NodeID string
 
 func (n *NodeID) UnmarshalJSON(data []byte) error {
@@ -108,8 +111,8 @@ type ShutdownReason int
 
 const (
 	ShutdownNone    ShutdownReason = iota // no shutdown event received yet
-	ShutdownRestart                       // i3/Sway is restarting
-	ShutdownExit                          // i3/Sway is exiting
+	ShutdownRestart                       // Sway is restarting
+	ShutdownExit                          // Sway is exiting
 )
 
 type Event interface{ isEvent() }
@@ -125,28 +128,38 @@ type rawMsg struct {
 	payload []byte
 }
 
-// Conn is a connection to i3/Sway.
+// Conn is a connection to Sway.
+//
+// readLoop is the only reader of the socket, so it delivers both events and
+// command replies. It must therefore never block for long on event delivery:
+// if it did, a reply arriving behind a burst of events would never be read,
+// and a caller waiting inside sendCmd would deadlock with the consumer that
+// is supposed to drain the events. Events are handed to an unbounded queue
+// (queue/queueCond) and forwarded to eventCh by a separate pump goroutine,
+// so a slow consumer can only make the queue grow, never stall the socket.
 type Conn struct {
 	sock    net.Conn
 	writeMu sync.Mutex
 	eventCh chan Event
 	replyCh chan rawMsg
+
+	queueMu   sync.Mutex
+	queueCond *sync.Cond
+	queue     []Event
+	queueDone bool
+
+	closeOnce sync.Once
+	done      chan struct{}
 }
 
 func getSocketPath() (string, error) {
-	if s := os.Getenv("I3SOCK"); s != "" {
-		return s, nil
-	}
 	if s := os.Getenv("SWAYSOCK"); s != "" {
 		return s, nil
-	}
-	if out, err := exec.Command("i3", "--get-socketpath").Output(); err == nil {
-		return strings.TrimSpace(string(out)), nil
 	}
 	if out, err := exec.Command("sway", "--get-socketpath").Output(); err == nil {
 		return strings.TrimSpace(string(out)), nil
 	}
-	return "", fmt.Errorf("no i3/Sway socket found (I3SOCK/SWAYSOCK not set)")
+	return "", fmt.Errorf("no Sway socket found (SWAYSOCK not set)")
 }
 
 func Connect() (*Conn, error) {
@@ -162,15 +175,21 @@ func Connect() (*Conn, error) {
 		sock:    sock,
 		eventCh: make(chan Event, 64),
 		replyCh: make(chan rawMsg, 8),
+		done:    make(chan struct{}),
 	}
+	c.queueCond = sync.NewCond(&c.queueMu)
 	go c.readLoop()
+	go c.pumpEvents()
 	return c, nil
 }
 
-func (c *Conn) Close() { _ = c.sock.Close() }
+func (c *Conn) Close() {
+	c.closeOnce.Do(func() { close(c.done) })
+	_ = c.sock.Close()
+}
 
 func (c *Conn) readLoop() {
-	defer close(c.eventCh)
+	defer c.closeQueue()
 	for {
 		ty, payload, err := c.readRawMsg()
 		if err != nil {
@@ -181,12 +200,51 @@ func (c *Conn) readLoop() {
 			if err != nil {
 				continue
 			}
-			c.eventCh <- ev
+			c.enqueue(ev)
 		} else {
 			select {
 			case c.replyCh <- rawMsg{ty, payload}:
 			default:
 			}
+		}
+	}
+}
+
+func (c *Conn) enqueue(ev Event) {
+	c.queueMu.Lock()
+	c.queue = append(c.queue, ev)
+	c.queueMu.Unlock()
+	c.queueCond.Signal()
+}
+
+// closeQueue tells the pump that no more events will arrive; the pump still
+// drains whatever is already queued before closing eventCh.
+func (c *Conn) closeQueue() {
+	c.queueMu.Lock()
+	c.queueDone = true
+	c.queueMu.Unlock()
+	c.queueCond.Broadcast()
+}
+
+func (c *Conn) pumpEvents() {
+	defer close(c.eventCh)
+	for {
+		c.queueMu.Lock()
+		for len(c.queue) == 0 && !c.queueDone {
+			c.queueCond.Wait()
+		}
+		if len(c.queue) == 0 {
+			c.queueMu.Unlock()
+			return // queue drained and closed
+		}
+		ev := c.queue[0]
+		c.queue = c.queue[1:]
+		c.queueMu.Unlock()
+
+		select {
+		case c.eventCh <- ev:
+		case <-c.done:
+			return // consumer gone (Close called): don't leak this goroutine
 		}
 	}
 }

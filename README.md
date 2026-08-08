@@ -1,10 +1,9 @@
-# i3-ws-rename
+# ws-rename
 
-`i3-ws-rename` is a small background helper for the [i3](https://i3wm.org/) and
-[Sway](https://swaywm.org/) window managers. It watches your workspaces and
-automatically renames each one to show an icon for every application you have
-open in it, so instead of a bare workspace number your bar shows something
-like:
+`ws-rename` is a small background helper for the [Sway](https://swaywm.org/)
+window manager. It watches your workspaces and automatically renames each one
+to show an icon for every application you have open in it, so instead of a
+bare workspace number your bar shows something like:
 
 ```
 1:🦊|📝   2:🎵   3:💻|💬
@@ -15,27 +14,35 @@ app — you can see it at a glance in the bar.
 
 ## How it works
 
-Every time you open, close, move, or rename a window, `i3-ws-rename` looks at
+Every time you open, close, move, or rename a window, `ws-rename` looks at
 which applications are present on each workspace and renames the workspace to
 a string made of the workspace number followed by one icon (or short label)
 per open application, separated by `|`. If it doesn't recognize an
-application, it falls back to a generic icon (▨) or to the application's own
-name in lowercase.
+application, the fallback depends on the window: native Wayland windows fall
+back to a generic icon (▨); windows running through XWayland (apps that
+haven't been ported to native Wayland) fall back to their own class (or
+instance, if class isn't set) in lowercase — see below for why the two
+differ.
 
 The program runs quietly in the background and does not require any
 interaction once it's set up.
 
 ## Requirements
 
-- i3 or Sway, with a status bar that displays workspace names (the default
-  bars in both window managers do).
+- Sway, with a status bar that displays workspace names (the default bar
+  does).
 - A font that can render the icons or emoji you choose to use (most modern
   system fonts and emoji fonts work fine).
 
 ## Installing
 
-`i3-ws-rename` is written in Go and has no external dependencies, so building
-it only requires a Go toolchain (Go 1.26 or newer):
+The simplest way is to grab a prebuilt binary from the
+[Releases](../../releases) page — `ws-rename-linux-amd64` or
+`ws-rename-linux-arm64`, depending on your machine — and copy it somewhere on
+your `PATH`, for example `~/.local/bin/ws-rename` (remember to `chmod +x` it).
+
+`ws-rename` is written in Go and has no external dependencies, so if you'd
+rather build it yourself all you need is a Go toolchain (Go 1.26 or newer):
 
 ```sh
 go build -o ws-rename .
@@ -46,18 +53,18 @@ Copy the resulting `ws-rename` binary somewhere on your `PATH`, for example
 
 ## Setting up your icons
 
-You tell `i3-ws-rename` which icon or label to show for each application
-through a configuration file named `app-icons.json`. By default the program
-looks for it in:
+You tell `ws-rename` which icon or label to show for each application through
+a configuration file named `app-icons.json`. By default the program looks for
+it in:
 
 1. `$XDG_CONFIG_HOME/sway/app-icons.json` (if `XDG_CONFIG_HOME` is set)
 2. `~/.config/sway/app-icons.json`
-3. `~/.i3/app-icons.json`
 
-The file is a JSON list, one entry per application. On i3 (X11), applications
-are matched by *window class* and/or *window instance*; on Sway (Wayland),
-they are matched by *app ID* and, optionally, by a pattern on the window
-title. A minimal example:
+The file is a JSON list, one entry per application. Native Wayland windows are
+matched by *app ID* and, optionally, by a pattern on the window title; windows
+running through XWayland (apps that haven't been ported to native Wayland)
+are matched by *window class* and/or *window instance* instead, the same
+properties X11 windows have always exposed. A minimal example:
 
 ```json
 [
@@ -69,22 +76,74 @@ title. A minimal example:
 ]
 ```
 
-- `window_class` / `window_instance` — used on i3, these correspond to the
-  values `xprop` shows for a window (`WM_CLASS`).
-- `app_id` — used on Sway, this is the Wayland application identifier.
+- `window_class` / `window_instance` — used for XWayland windows, these
+  correspond to the values `xprop` shows for a window (`WM_CLASS`).
+- `app_id` — the Wayland application identifier, used for native Wayland
+  windows.
 - `name` — optional; matches against the window title, letting you show a
   different icon for the same application depending on what's open in it
   (e.g. a terminal running a chat client vs. a plain shell).
 - `icon` — the text shown on the workspace: typically a single emoji or a
   glyph from an icon font, but any short string works.
 
-You don't need to restart `i3-ws-rename` after editing this file — just
-restart the program (see below) to pick up your changes.
+When more than one entry could match a window, the most specific one wins:
+for XWayland windows, class+instance beats class alone, which beats instance
+alone; for native Wayland windows, app_id+name beats app_id alone. If nothing
+matches, XWayland windows fall back to their own class (or instance) in
+lowercase, since X11 windows essentially always have one; native Wayland
+windows are only guaranteed an app_id, so there's nothing meaningful to fall
+back to and you get a generic icon (▨) instead.
+
+You don't need to restart `ws-rename` after editing this file — just restart
+the program (see below) to pick up your changes.
+
+## Extra behaviours
+
+Because the program is already listening to every window event the compositor
+emits, it can host other event-driven behaviours at no extra cost — a single
+IPC subscription instead of one background script per feature. Both of the
+following are off unless you turn them on.
+
+### Firefox title rules
+
+Sway evaluates `for_window` criteria once, when a window is mapped. Firefox on
+Wayland sets its real title through a separate `title` event that arrives
+*later*, so `for_window [app_id="org.mozilla.firefox" title="..."]` often never
+fires. This feature applies the same rules when the title actually shows up.
+
+It turns itself on if a file named `firefox-title-rules.conf` exists in the
+same directories searched for `app-icons.json`. One rule per line, split on the
+first `=`; blank lines and lines starting with `#` are ignored:
+
+```
+Contatore Sigarette — Mozilla Firefox=floating enable, resize set 558 px 484 px, move position center
+.*\| Brilliant — Mozilla Firefox=move container to workspace number 5, workspace number 5
+```
+
+The left-hand side is a regular expression matched against the window title
+(unanchored, like sway's own criteria); the right-hand side is the list of
+commands, applied exactly as they would be inside a `for_window` block. Each
+rule runs at most once per window.
+
+### Autotiling
+
+With `--autotiling`, the split direction of the focused window is kept in sync
+with its shape: wider than tall means the next window opens beside it, taller
+than wide means below. Without it, Sway keeps splitting the same axis until
+you are left with unusably narrow columns. Floating and fullscreen
+windows, and containers in a tabbed or stacked parent, are left alone.
+
+A new window also gets only part of the space instead of half of it: by
+default 30%, leaving 70% to the window that was already there, on the theory
+that what you were working on shouldn't be cut in half by what you just
+opened. Use `--split-ratio` to change the share, or `--split-ratio 50` to go
+back to even splits. Note that this applies to newly opened windows only —
+a window *moved* into an existing container still lands on an even split.
 
 ## Running it
 
-Add a line like this to your i3 or Sway configuration file so the program
-starts automatically with your session:
+Add a line like this to your Sway configuration file so the program starts
+automatically with your session:
 
 ```
 exec ws-rename --daemon
@@ -95,18 +154,29 @@ Available command-line options:
 | Flag              | Description                                                          |
 | ----------------- | --------------------------------------------------------------------- |
 | `-d`, `--daemon`  | Run in the background instead of staying attached to your terminal.  |
-| `-v`, `--verbose` | Write extra diagnostic detail to the log file, useful when troubleshooting. |
-| `-l`, `--log`     | Path to the log file (default: `~/.cache/ws-rename/log.txt`).        |
+| `-v`, `--verbose` | Log extra diagnostic detail, useful when troubleshooting.            |
 | `-c`, `--conf`    | Path to a specific `app-icons.json` file, if you don't want to rely on the default locations. |
+| `--autotiling`    | Keep the split direction of the focused window matched to its shape. |
+| `--split-ratio`   | Percentage of the container given to a newly opened window (default: 30; 50 splits evenly). Requires `--autotiling`. |
+| `--firefox-rules` | Path to a specific Firefox title rules file; pass an empty value to disable the feature even when the file exists. |
+| `--stderr`        | Log to stderr instead of the system log, handy when running in the foreground. |
 | `--version`       | Print the program's version and exit.                                |
+| `-u`, `--uniq`    | Accepted for backwards compatibility, but currently has no effect (consecutive duplicate icons are always collapsed). |
 
-If something doesn't look right — an icon not showing up, or a workspace not
-renaming — the log file is the first place to check; running with `--verbose`
-gives a detailed trace of what the program saw and did.
+The program writes to the system log, so if something doesn't look like it
+should — an icon not showing up, a workspace not renaming, a rule not firing —
+that's the first place to check:
+
+```sh
+journalctl -t ws-rename -f
+```
+
+Running with `--verbose` adds a detailed trace of everything the program saw
+and did, including the layout decisions it takes on every focus change.
 
 ## Restarting after a Sway reload
 
-If Sway restarts (for example after a config reload), `i3-ws-rename`
+If Sway restarts (for example after a config reload), `ws-rename`
 automatically reconnects and keeps working without needing to be started
 again by hand.
 
