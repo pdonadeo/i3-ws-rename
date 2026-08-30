@@ -139,6 +139,45 @@ opened. Use `--split-ratio` to change the share, or `--split-ratio 50` to go
 back to even splits. Note that this applies to newly opened windows only —
 a window *moved* into an existing container still lands on an even split.
 
+For that share to be taken from the window you are looking at, the window has
+to be one Sway is willing to split. Left to itself, Sway only splits the
+focused window when it is alone in its container: with anything else beside it,
+a new window is added as one more sibling and the whole row is squeezed to make
+room — which is why, without this, the ratio quietly stopped applying past the
+second window on a workspace. `--autotiling` therefore wraps a focused window
+that has siblings in a container of its own, so that whatever you open next
+divides *that* window and leaves the rest of the layout where it is. The extra
+container changes nothing on screen, and a window that already has one is left
+alone.
+
+#### Tabs instead of slivers
+
+There is a point past which splitting again stops making sense: a column four
+hundred pixels wide is not enough for an editor, and what you actually want is
+both windows at full size, one in front of the other. `--autotiling` does that
+by itself. Before a window opens, the space it is going to get is compared
+against `--tab-min-width` (500 pixels by default); if it falls short, the
+container is turned into a tabbed one instead of being split, and the new
+window becomes a tab of it. `--stack-min-height` (300 by default) is the same
+rule for a vertical split, where the container is stacked rather than tabbed.
+Pass `0` to either flag to switch that half off.
+
+Both defaults are deliberately low: splitting a window you wanted tabbed only
+leaves you where you were before, whereas tabbing one you wanted split hides a
+window you were looking at. Raise them until the program tabs as often as you
+would have done by hand.
+
+The comparison is made on the size the window is *about* to get, so it opens
+straight into its tab: nothing is resized first and reshuffled afterwards.
+Only a container holding exactly two windows is ever tabbed this way — one
+that already has three or more is a layout you built on purpose, and folding
+it away would hide windows you never asked about.
+
+When one of the two windows is closed and a tab bar over a lone window is all
+that would be left, the container goes back to the layout it had. This only
+happens to containers the program tabbed itself: if you make one tabbed by
+hand, or take over one of these, it stays exactly as you left it.
+
 ## Running it
 
 Add a line like this to your Sway configuration file so the program starts
@@ -157,6 +196,8 @@ Available command-line options:
 | `-c`, `--conf`    | Path to a specific `app-icons.json` file, if you don't want to rely on the default locations. |
 | `--autotiling`    | Keep the split direction of the focused window matched to its shape. |
 | `--split-ratio`   | Percentage of the container given to a newly opened window (default: 30; 50 splits evenly). Requires `--autotiling`. |
+| `--tab-min-width` | Smallest width, in pixels, a new window may get out of a horizontal split; below it the container is made tabbed instead (default: 500; 0 disables). Requires `--autotiling`. |
+| `--stack-min-height` | The same for a vertical split, where the container is stacked instead (default: 300; 0 disables). Requires `--autotiling`. |
 | `--firefox-rules` | Path to a specific Firefox title rules file; pass an empty value to disable the feature even when the file exists. |
 | `--stderr`        | Log to stderr instead of the system log, handy when running in the foreground. |
 | `--version`       | Print the program's version and exit.                                |

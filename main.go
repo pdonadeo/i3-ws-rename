@@ -118,15 +118,17 @@ func absPath(path, wd string) string {
 // "--" prefix (GNU/Go convention), never a single "-". Single-letter
 // shorthands (e.g. -c, -d) may keep a single dash.
 var longFlagNames = map[string]bool{
-	"daemon":        true,
-	"verbose":       true,
-	"conf":          true,
-	"uniq":          true,
-	"version":       true,
-	"autotiling":    true,
-	"split-ratio":   true,
-	"firefox-rules": true,
-	"stderr":        true,
+	"daemon":           true,
+	"verbose":          true,
+	"conf":             true,
+	"uniq":             true,
+	"version":          true,
+	"autotiling":       true,
+	"split-ratio":      true,
+	"tab-min-width":    true,
+	"stack-min-height": true,
+	"firefox-rules":    true,
+	"stderr":           true,
 }
 
 // usageWithDoubleDash returns a flag.Usage replacement that fixes up the
@@ -176,15 +178,17 @@ func main() {
 	defaultFirefoxRules := getDefaultConfFname(firefoxTitleRulesFile)
 
 	var (
-		uniq         bool
-		daemon       bool
-		verbose      bool
-		showVersion  bool
-		autotiling   bool
-		toStderr     bool
-		splitRatio   int
-		confFile     string
-		firefoxRules string
+		uniq           bool
+		daemon         bool
+		verbose        bool
+		showVersion    bool
+		autotiling     bool
+		toStderr       bool
+		splitRatio     int
+		tabMinWidth    int
+		stackMinHeight int
+		confFile       string
+		firefoxRules   string
 	)
 
 	flag.BoolVar(&uniq, "u", false, "Remove duplicate icons in case the same application")
@@ -201,6 +205,14 @@ func main() {
 	flag.IntVar(&splitRatio, "split-ratio", 30,
 		"Percentage of the container given to a newly opened window, 1 to 99 "+
 			"(default 30: the existing window keeps 70%; 50 splits evenly). "+
+			"Requires --autotiling")
+	flag.IntVar(&tabMinWidth, "tab-min-width", 500,
+		"Minimum width in pixels a new window may get out of a horizontal "+
+			"split: below it the container is made tabbed instead, so both "+
+			"windows keep the full width (0 disables). Requires --autotiling")
+	flag.IntVar(&stackMinHeight, "stack-min-height", 300,
+		"Same as --tab-min-width for a vertical split: below this height the "+
+			"container is stacked instead of split (0 disables). "+
 			"Requires --autotiling")
 	flag.StringVar(&firefoxRules, "firefox-rules", defaultFirefoxRules,
 		"Path to the Firefox title rules file (empty: feature disabled)")
@@ -222,6 +234,12 @@ func main() {
 	if splitRatio < 1 || splitRatio > 99 {
 		fmt.Fprintf(os.Stderr,
 			"ws-rename: --split-ratio must be between 1 and 99, got %d\n", splitRatio)
+		os.Exit(2)
+	}
+
+	if tabMinWidth < 0 || stackMinHeight < 0 {
+		fmt.Fprintf(os.Stderr,
+			"ws-rename: --tab-min-width and --stack-min-height cannot be negative\n")
 		os.Exit(2)
 	}
 
@@ -282,8 +300,9 @@ func main() {
 	}
 
 	if autotiling {
-		handlers = append(handlers, newAutotileHandler(splitRatio))
-		log.Info("autotiling enabled", "split_ratio", splitRatio)
+		handlers = append(handlers, newAutotileHandler(splitRatio, tabMinWidth, stackMinHeight))
+		log.Info("autotiling enabled", "split_ratio", splitRatio,
+			"tab_min_width", tabMinWidth, "stack_min_height", stackMinHeight)
 	}
 
 	handlers = append(handlers, newIconHandler(conf))
