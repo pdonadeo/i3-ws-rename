@@ -124,6 +124,7 @@ var longFlagNames = map[string]bool{
 	"uniq":             true,
 	"version":          true,
 	"autotiling":       true,
+	"maximize":         true,
 	"split-ratio":      true,
 	"tab-min-width":    true,
 	"stack-min-height": true,
@@ -183,6 +184,7 @@ func main() {
 		verbose        bool
 		showVersion    bool
 		autotiling     bool
+		maximize       bool
 		toStderr       bool
 		splitRatio     int
 		tabMinWidth    int
@@ -206,6 +208,10 @@ func main() {
 		"Percentage of the container given to a newly opened window, 1 to 99 "+
 			"(default 30: the existing window keeps 70%; 50 splits evenly). "+
 			"Requires --autotiling")
+	flag.BoolVar(&maximize, "maximize", false,
+		"Give the window marked "+maximizeMark+" the whole workspace until the "+
+			"mark is removed, bar and gaps respected and the layout kept "+
+			"(bind it with: bindsym $mod+z mark --add --toggle "+maximizeMark+")")
 	flag.IntVar(&tabMinWidth, "tab-min-width", 500,
 		"Minimum width in pixels a new window may get out of a horizontal "+
 			"split: below it the container is made tabbed instead, so both "+
@@ -303,6 +309,11 @@ func main() {
 		handlers = append(handlers, newAutotileHandler(splitRatio, tabMinWidth, stackMinHeight))
 		log.Info("autotiling enabled", "split_ratio", splitRatio,
 			"tab_min_width", tabMinWidth, "stack_min_height", stackMinHeight)
+	}
+
+	if maximize {
+		handlers = append(handlers, newMaximizeHandler())
+		log.Info("maximize enabled", "mark", maximizeMark)
 	}
 
 	handlers = append(handlers, newIconHandler(conf))

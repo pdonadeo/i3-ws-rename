@@ -75,6 +75,7 @@ type Node struct {
 	WindowProps    *WindowProperties `json:"window_properties"`
 	Urgent         bool              `json:"urgent"`
 	Focused        bool              `json:"focused"`
+	Marks          []string          `json:"marks"`
 	Focus          []NodeID          `json:"focus"`
 	FullscreenMode int               `json:"fullscreen_mode"`
 	AppID          *string           `json:"app_id"`

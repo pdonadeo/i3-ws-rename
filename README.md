@@ -178,6 +178,38 @@ that would be left, the container goes back to the layout it had. This only
 happens to containers the program tabbed itself: if you make one tabbed by
 hand, or take over one of these, it stays exactly as you left it.
 
+### Maximize without fullscreen
+
+`fullscreen` covers the entire output, bar included, which is more than you
+want when all you need is a good look at one window for a minute. With
+`--maximize` the program offers a gentler version: the marked window is given
+the whole workspace — bar still there, gaps still respected — by making every
+container between it and the workspace tabbed. Nothing is moved or closed, the
+other windows are simply behind the tabs, and removing the mark puts every
+layout back exactly as it was.
+
+The trigger is a Sway mark rather than a command of its own, so a plain binding
+is all it takes:
+
+```
+bindsym $mod+z mark --add --toggle _wsr_max
+```
+
+Sway reports the mark as a window event, which is how the program hears about
+it. A mark belongs to one window at a time, so marking another window while one
+is maximized restores the first and maximizes the second in one go. The mark
+name begins with an underscore, which is Sway's convention for marks that
+should not be drawn in window titles.
+
+What it costs is one tab bar per level of nesting between the window and the
+workspace — a few dozen pixels, and arguably useful, since the tabs show what
+is behind and take you back with a click. Containers holding a single window
+are skipped: tabbing them would hide nothing and cost a bar anyway.
+
+One rough edge: what to restore lives in the running program, so if it is
+restarted while a window is maximized, that layout stays tabbed. Removing the
+mark and pressing your "toggle split" binding sorts it out.
+
 ## Running it
 
 Add a line like this to your Sway configuration file so the program starts
@@ -195,6 +227,7 @@ Available command-line options:
 | `-v`, `--verbose` | Log extra diagnostic detail, useful when troubleshooting.            |
 | `-c`, `--conf`    | Path to a specific `app-icons.json` file, if you don't want to rely on the default locations. |
 | `--autotiling`    | Keep the split direction of the focused window matched to its shape. |
+| `--maximize`      | Give the window marked `_wsr_max` the whole workspace until the mark is removed, keeping the bar, the gaps and the layout. |
 | `--split-ratio`   | Percentage of the container given to a newly opened window (default: 30; 50 splits evenly). Requires `--autotiling`. |
 | `--tab-min-width` | Smallest width, in pixels, a new window may get out of a horizontal split; below it the container is made tabbed instead (default: 500; 0 disables). Requires `--autotiling`. |
 | `--stack-min-height` | The same for a vertical split, where the container is stacked instead (default: 300; 0 disables). Requires `--autotiling`. |
