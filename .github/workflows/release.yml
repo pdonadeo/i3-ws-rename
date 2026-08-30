@@ -27,6 +27,14 @@ jobs:
         with:
           fetch-depth: 0
 
+      # actions/checkout does not bring the tag object over: it writes the tag
+      # ref pointing straight at the commit, which makes it a lightweight tag,
+      # and %(contents) on one of those returns the *commit* message. Fetching
+      # the tags again, forcefully, replaces the ref with the real annotated
+      # object and with it the message the release is built from.
+      - name: Fetch the annotated tag objects
+        run: git fetch --tags --force origin
+
       - name: Work out the tag
         id: tag
         run: |
