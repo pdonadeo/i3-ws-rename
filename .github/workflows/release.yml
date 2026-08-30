@@ -1,6 +1,14 @@
-name: Release Binaries
+name: Release
 
+# Two ways in, one path through. Pushing a tag is the everyday one: the
+# release is created here and the binaries land on it. Publishing a release by
+# hand still works too, which is how a build gets re-run without moving the
+# tag. Note that the release created below does *not* fire the "published"
+# event: GitHub does not let a workflow using the default token trigger
+# another one, which is exactly why this is a single workflow and not two.
 on:
+  push:
+    tags: ["v*"]
   release:
     types: [published]
 
@@ -8,7 +16,57 @@ permissions:
   contents: write
 
 jobs:
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Work out the tag
+        id: tag
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            TAG="${GITHUB_REF#refs/tags/}"
+          fi
+          echo "Tag: $TAG"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Create the release unless it is already there
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          set -o pipefail
+
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release $TAG already exists, leaving it alone"
+            exit 0
+          fi
+
+          # The tags are annotated and signed, so what was written for the tag
+          # is what the release says: its first line becomes the title, the
+          # rest the notes. The signature block is not part of either. A tag
+          # with nothing but a subject falls back to GitHub's own changelog.
+          SUBJECT="$(git tag -l --format='%(contents:subject)' "$TAG")"
+          BODY="$(git tag -l --format='%(contents:body)' "$TAG")"
+
+          if [ -n "$(printf '%s' "$BODY" | tr -d '[:space:]')" ]; then
+            gh release create "$TAG" --repo "${{ github.repository }}" \
+              --verify-tag --title "${SUBJECT:-$TAG}" --notes "$BODY"
+          else
+            gh release create "$TAG" --repo "${{ github.repository }}" \
+              --verify-tag --title "${SUBJECT:-$TAG}" --generate-notes
+          fi
+
   build:
+    needs: release
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -48,6 +106,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release upload "${{ github.event.release.tag_name }}" \
+          gh release upload "${{ needs.release.outputs.tag }}" \
             "ws-rename-linux-${{ matrix.arch }}" --clobber \
             --repo "${{ github.repository }}"
